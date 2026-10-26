@@ -18,6 +18,8 @@
 
 开源备选 [AltKeeper](https://github.com/BartolomeoRusso9/altkeeper) 已在这台 Windows 11 上完成 USB 配对并读取手机状态，但尚未用本人 Apple ID 完成签名安装；项目作者也未验证 Windows 11 的完整安装闭环。因此当前仍不能把它写成已解决 -80046 的方案。
 
+另一个可尝试的路径是 [iLoader 官方项目](https://github.com/nab138/iloader)：其 [Windows 安装包](https://github.com/nab138/iloader/releases/download/v2.4.0/iloader-windows-x64.msi) 已下载到本机 `D:/DevCaches/jianzhou-mobile/iloader/iloader-windows-x64.msi`。官方文档说明它能通过 **Import IPA** 导入自有安装包；连接并信任手机后，可选本机 `D:/DevCaches/jianzhou-mobile/ready/JianzhouPrompter-iOS-current.ipa`，账号验证仅在 iLoader 本机窗口完成。[一位 iOS 27.2 用户报告](https://github.com/SideStore/SideStore/issues/1693) iLoader 的签名安装成功，但这台 iPhone 13 尚未验证，不能据此断定 -80046 已解决。不要为排错连续反复登录。
+
 ## 需要本人确认的结果
 
 - 应用能在手机打开，稿件可修改并保留。
