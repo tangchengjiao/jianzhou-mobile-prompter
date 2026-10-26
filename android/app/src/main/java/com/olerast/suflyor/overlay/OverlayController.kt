@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -25,6 +27,8 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.PopupMenu
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.annotation.StringRes
 import com.olerast.suflyor.App
@@ -71,7 +75,9 @@ class OverlayController(private val context: Context, private val windowType: In
     private lateinit var level: LevelBar
     private lateinit var diag: TextView
     private lateinit var grabber: FrameLayout
-    private lateinit var resizeHandle: TextView
+    private lateinit var resizeHandle: View
+    private lateinit var overflow: ImageView
+    private var wideControls = emptyList<View>()
     private lateinit var pauseBtn: ImageView
     private lateinit var modeBtn: ImageView
     private lateinit var timedFallback: TextView
@@ -81,7 +87,6 @@ class OverlayController(private val context: Context, private val windowType: In
     private val tuneValues = ArrayList<() -> Unit>()
 
     /** "Lines" means nothing sideways, where the text fills the window's height. */
-    private var linesGroup: View? = null
     private lateinit var background: GradientDrawable
 
     private var bubble: View? = null
@@ -159,25 +164,32 @@ class OverlayController(private val context: Context, private val windowType: In
                 addView(statusDot, LinearLayout.LayoutParams(dp(8), dp(8)))
                 addView(statusText)
             })
-            addView(level, LinearLayout.LayoutParams(dp(56), dp(3)).apply { topMargin = dp(4) })
+            addView(level, LinearLayout.LayoutParams(dp(40), dp(3)).apply { topMargin = dp(4) })
+        }
+        val previous = icon(R.drawable.ic_up, R.string.common_cd_line_back) { app.engine.stepLine(-1) }
+        val next = icon(R.drawable.ic_down, R.string.common_cd_line_forward) { app.engine.stepLine(1) }
+        val lock = icon(R.drawable.ic_lock, R.string.overlay_cd_lock) { setLocked(true) }
+        wideControls = listOf(previous, next, lock)
+        overflow = icon(R.drawable.ic_more, R.string.library_cd_menu) {
+            PopupMenu(context, overflow).apply {
+                menu.add(R.string.common_cd_line_back).setOnMenuItemClickListener { app.engine.stepLine(-1); true }
+                menu.add(R.string.common_cd_line_forward).setOnMenuItemClickListener { app.engine.stepLine(1); true }
+                menu.add(R.string.overlay_cd_lock).setOnMenuItemClickListener { setLocked(true); true }
+            }.show()
         }
         controls = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(10), 0, dp(6), 0)
-            addView(LinearLayout(context).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                addView(status, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-                addView(modeBtn)
-                addView(icon(R.drawable.ic_lock, R.string.overlay_cd_lock) { setLocked(true) })
-                addView(icon(R.drawable.ic_close, R.string.overlay_cd_close) { OverlayHost.stopSession(context) })
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)))
-            addView(LinearLayout(context).apply {
-                gravity = Gravity.CENTER
-                addView(icon(R.drawable.ic_up, R.string.common_cd_line_back) { app.engine.stepLine(-1) })
-                addView(pauseBtn)
-                addView(icon(R.drawable.ic_down, R.string.common_cd_line_forward) { app.engine.stepLine(1) })
-                addView(textButton("Aa", R.string.overlay_cd_tune) { setTuneOpen(tuneRow.visibility != View.VISIBLE) })
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)))
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(8), 0, dp(8), 0)
+            addView(status, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(modeBtn)
+            addView(previous)
+            addView(pauseBtn)
+            addView(next)
+            addView(textButton("Aa", R.string.overlay_cd_tune) { setTuneOpen(tuneRow.visibility != View.VISIBLE) })
+            addView(lock)
+            addView(overflow)
+            addView(icon(R.drawable.ic_close, R.string.overlay_cd_close) { OverlayHost.stopSession(context) })
         }
         tuneRow = buildTuneRow()
         diag = TextView(context).apply {
@@ -204,15 +216,21 @@ class OverlayController(private val context: Context, private val windowType: In
                     setColor(Color.argb(110, 255, 255, 255))
                 }
             }, FrameLayout.LayoutParams(dp(40), dp(4), Gravity.CENTER))
-            resizeHandle = TextView(context).apply {
-                text = "◢"
-                textSize = 21f
-                gravity = Gravity.CENTER
-                setTextColor(PrompterView.ACCENT)
+            resizeHandle = object : View(context) {
+                private val grip = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.argb(120, 255, 255, 255)
+                    strokeWidth = dp(1).toFloat()
+                }
+                override fun onDraw(canvas: Canvas) {
+                    for (length in listOf(6, 11)) {
+                        canvas.drawLine(width - dp(length).toFloat(), height - dp(5).toFloat(),
+                            width - dp(5).toFloat(), height - dp(length).toFloat(), grip)
+                    }
+                }
+            }.apply {
                 contentDescription = context.getString(R.string.overlay_cd_resize)
-                background = ripple()
             }
-            addView(resizeHandle, FrameLayout.LayoutParams(dp(44), dp(32), Gravity.END or Gravity.BOTTOM))
+            addView(resizeHandle, FrameLayout.LayoutParams(dp(32), dp(24), Gravity.END or Gravity.BOTTOM))
         }
 
         background = GradientDrawable().apply { setColor(Color.argb(app.settings.overlayAlpha * 255 / 100, 8, 8, 10)) }
@@ -221,11 +239,11 @@ class OverlayController(private val context: Context, private val windowType: In
             this.background = this@OverlayController.background
             addView(topSpacer, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0))
             addView(textBox, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, prompterHeight()))
-            addView(controls, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(88)))
+            addView(controls, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)))
             addView(tuneRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(diag, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(timedFallback, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(36)))
-            addView(grabber, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(32)))
+            addView(grabber, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(24)))
         }
         val root = RotatedFrame(context).apply {
             addView(panel, android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -249,6 +267,8 @@ class OverlayController(private val context: Context, private val windowType: In
         applyPlacement()
 
         installDrag(grabber, resize = false)
+        installDrag(status, resize = false)
+        installDrag(controls, resize = false)
         installDrag(resizeHandle, resize = true)
 
         wm.addView(root, params)
@@ -329,9 +349,9 @@ class OverlayController(private val context: Context, private val windowType: In
     }
 
     private fun sideways() = placement == Placement.TURNED_LEFT || placement == Placement.TURNED_RIGHT
-    private fun tuneExtra() = if (tuneRow.visibility == View.VISIBLE) dp(76) else 0
+    private fun tuneExtra() = if (tuneRow.visibility == View.VISIBLE) dp(44) else 0
     private fun minimumSize(): Pair<Int, Int> {
-        val textAndControls = dp(56 + 88 + 32) + tuneExtra() +
+        val textAndControls = dp(56 + if (locked) 0 else 44 + 24) + tuneExtra() +
             (if (placement == Placement.PORTRAIT) safeTop else 0) +
             (if (diag.visibility == View.VISIBLE) dp(44) else 0) +
             (if (timedFallback.visibility == View.VISIBLE) dp(36) else 0)
@@ -362,13 +382,12 @@ class OverlayController(private val context: Context, private val windowType: In
             weight = 1f
         }
         grabber.visibility = if (!locked) View.VISIBLE else View.GONE
-        linesGroup?.visibility = if (portrait) View.VISIBLE else View.INVISIBLE
         panel.setPadding(0, 0, 0, 0)
         prompter.setPadding(basePadStart, dp(4), basePadEnd, dp(2))
         topSpacer.layoutParams = topSpacer.layoutParams.apply { height = 0 }
 
         val defaults = when (placement) {
-            Placement.PORTRAIT -> OverlayBounds(0, portraitY, screenW, prompterHeight() + dp(120) + (safeTop - portraitY).coerceAtLeast(0))
+            Placement.PORTRAIT -> OverlayBounds(0, portraitY, screenW, prompterHeight() + dp(68) + (safeTop - portraitY).coerceAtLeast(0))
             Placement.TURNED_LEFT, Placement.TURNED_RIGHT -> OverlayBounds(0, 0, screenW, (screenH * 0.46f).toInt())
             Placement.SIDE_LEFT -> OverlayBounds(0, 0, (screenW * 0.46f).toInt(), screenH)
             Placement.SIDE_RIGHT -> OverlayBounds((screenW * 0.54f).toInt(), 0, (screenW * 0.46f).toInt(), screenH)
@@ -377,6 +396,9 @@ class OverlayController(private val context: Context, private val windowType: In
         val expanded = if (sideways()) base.copy(width = base.width + tuneExtra()) else base.copy(height = base.height + tuneExtra())
         val (minW, minH) = minimumSize()
         val bounds = expanded.fit(screenW, screenH, minW, minH)
+        val wide = (if (sideways()) bounds.height else bounds.width) >= dp(344)
+        wideControls.forEach { it.visibility = if (wide) View.VISIBLE else View.GONE }
+        overflow.visibility = if (wide) View.GONE else View.VISIBLE
         params.gravity = Gravity.TOP or Gravity.LEFT
         params.x = bounds.x; params.y = bounds.y
         params.width = bounds.width; params.height = bounds.height
@@ -601,70 +623,77 @@ class OverlayController(private val context: Context, private val windowType: In
 
     private fun buildTuneRow(): View {
         val s = app.settings
-        // Two by two: four groups in one row don't fit a phone, and a row that scrolls sideways hides half of them.
-        fun row(vararg groups: View) = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            groups.forEach { addView(it, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)) }
+        val labels = listOf(R.string.overlay_tune_font, R.string.overlay_tune_lines,
+            R.string.settings_opacity_title, R.string.overlay_tune_speed).map(context::getString)
+        var selected = 2 // Opacity is immediately visible when Aa is opened.
+        var refreshing = false
+        val picker = TextView(context).apply {
+            setTextColor(Color.WHITE); textSize = 11f; gravity = Gravity.CENTER
+            maxLines = 1; background = ripple()
         }
-        return LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(10), 0, dp(10), dp(4))
-            visibility = View.GONE
-            addView(
-                row(
-                    tuneGroup(R.string.overlay_tune_font, { "$fontSp" }, { changeFont(-2) }, { changeFont(2) }),
-                    tuneGroup(R.string.overlay_tune_lines, { "${s.overlayLines}" }, { changeLines(-1) }, { changeLines(1) })
-                        .also { linesGroup = it },
-                ),
-            )
-            addView(
-                row(
-                    tuneGroup(R.string.overlay_tune_background, { "${s.overlayAlpha}%" }, { changeAlpha(-8) }, { changeAlpha(8) }),
-                    tuneGroup(R.string.overlay_tune_speed, { "${s.autoScrollWpm}" }, { changeSpeed(-10) }, { changeSpeed(10) }),
-                ),
-            )
+        val slider = SeekBar(context).apply {
+            progressTintList = ColorStateList.valueOf(PrompterView.ACCENT)
+            thumbTintList = ColorStateList.valueOf(PrompterView.ACCENT)
+            setPadding(dp(8), 0, dp(8), 0)
         }
-    }
-
-    /** Caption, −, the current value, +. */
-    private fun tuneGroup(@StringRes caption: Int, value: () -> String, onMinus: () -> Unit, onPlus: () -> Unit): View {
-        val name = context.getString(caption)
         val valueView = TextView(context).apply {
-            setTextColor(Color.WHITE)
-            textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            minWidth = dp(30)
+            setTextColor(Color.WHITE); textSize = 12f; gravity = Gravity.CENTER
         }
-        tuneValues += { valueView.text = value() }
-        valueView.text = value()
-        fun step(label: String, cd: String, action: () -> Unit) = TextView(context).apply {
-            text = label
-            contentDescription = cd
-            setTextColor(Color.WHITE)
-            textSize = 18f
-            gravity = Gravity.CENTER
-            background = ripple()
-            layoutParams = LinearLayout.LayoutParams(dp(28), dp(36))
-            setOnClickListener {
-                action()
-                tuneValues.forEach { it() }
+        fun minimum() = when (selected) { 0 -> MIN_FONT_SP; 1 -> 1; 2 -> 0; else -> 60 }
+        fun maximum() = when (selected) { 0 -> MAX_FONT_SP; 1 -> 8; 2 -> 100; else -> 260 }
+        fun stepSize() = when (selected) { 0 -> 2; 3 -> 10; else -> 1 }
+        fun value() = when (selected) { 0 -> fontSp; 1 -> s.overlayLines; 2 -> s.overlayAlpha; else -> s.autoScrollWpm }
+        fun refresh() {
+            refreshing = true
+            picker.text = labels[selected] + " ▾"
+            picker.contentDescription = context.getString(R.string.overlay_tune_choose, labels[selected])
+            slider.contentDescription = labels[selected]
+            slider.max = (maximum() - minimum()) / stepSize()
+            slider.progress = (value() - minimum()) / stepSize()
+            valueView.text = if (selected == 2) "${value()}%" else "${value()}"
+            refreshing = false
+        }
+        fun adjust(next: Int) {
+            val target = next.coerceIn(minimum(), maximum())
+            when (selected) {
+                0 -> changeFont(target - fontSp)
+                1 -> changeLines(target - s.overlayLines)
+                2 -> changeAlpha(target - s.overlayAlpha)
+                else -> changeSpeed(target - s.autoScrollWpm)
             }
+            refresh()
         }
+        slider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(view: SeekBar, progress: Int, fromUser: Boolean) {
+                if (fromUser && !refreshing) adjust(minimum() + progress * stepSize())
+            }
+            override fun onStartTrackingTouch(view: SeekBar) = Unit
+            override fun onStopTrackingTouch(view: SeekBar) = Unit
+        })
+        picker.setOnClickListener {
+            PopupMenu(context, picker).apply {
+                labels.forEachIndexed { index, label ->
+                    menu.add(label).setOnMenuItemClickListener { selected = index; refresh(); true }
+                }
+            }.show()
+        }
+        fun step(label: String, @StringRes description: Int, direction: Int) = TextView(context).apply {
+            text = label; contentDescription = context.getString(description)
+            setTextColor(Color.WHITE); textSize = 18f; gravity = Gravity.CENTER; background = ripple()
+            setOnClickListener { adjust(value() + direction * stepSize()) }
+        }
+        tuneValues += ::refresh
+        refresh()
         return LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(TextView(context).apply {
-                text = name
-                setTextColor(Color.argb(170, 255, 255, 255))
-                textSize = 11f
-                maxLines = 1
-                setPadding(dp(4), 0, dp(2), 0)
-            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(step("−", context.getString(R.string.stepper_cd_decrease, name), onMinus))
-            addView(valueView)
-            addView(step("+", context.getString(R.string.stepper_cd_increase, name), onPlus))
+            setPadding(dp(8), 0, dp(8), 0)
+            visibility = View.GONE
+            addView(picker, LinearLayout.LayoutParams(dp(82), dp(44)))
+            addView(step("−", R.string.overlay_adjust_decrease, -1), LinearLayout.LayoutParams(dp(24), dp(44)))
+            addView(slider, LinearLayout.LayoutParams(0, dp(44), 1f))
+            addView(step("+", R.string.overlay_adjust_increase, 1), LinearLayout.LayoutParams(dp(24), dp(44)))
+            addView(valueView, LinearLayout.LayoutParams(dp(40), dp(44)))
         }
     }
 
@@ -692,7 +721,7 @@ class OverlayController(private val context: Context, private val windowType: In
     }
 
     private fun changeAlpha(delta: Int) {
-        app.settings.overlayAlpha = (app.settings.overlayAlpha + delta).coerceIn(24, 96)
+        app.settings.overlayAlpha = (app.settings.overlayAlpha + delta).coerceIn(0, 100)
         background.setColor(Color.argb(app.settings.overlayAlpha * 255 / 100, 8, 8, 10))
     }
 

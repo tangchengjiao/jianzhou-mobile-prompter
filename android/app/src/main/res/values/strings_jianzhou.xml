@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="library_export_batch">批量导出</string>
+    <string name="library_export_select_all">全选当前列表</string>
+    <string name="library_export_count">已选 %1$d 篇</string>
+    <string name="library_export_action">导出 %1$d 篇为 TXT 压缩包</string>
+    <string name="library_export_saved">已导出 %1$d 篇稿件，每篇为单独的 TXT</string>
+    <string name="overlay_tune_choose">%1$s，点此切换调节项</string>
+    <string name="overlay_adjust_decrease">减小当前选项</string>
+    <string name="overlay_adjust_increase">增大当前选项</string>
     <string name="overlay_cd_move">拖动移动提词窗</string>
     <string name="overlay_cd_resize">拖动调整提词窗宽高</string>
     <string name="script_export_txt">导出 TXT</string>

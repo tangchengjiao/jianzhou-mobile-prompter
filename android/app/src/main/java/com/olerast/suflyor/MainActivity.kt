@@ -74,11 +74,18 @@ class MainActivity : ComponentActivity() {
     private var afterMicGranted: (() -> Unit)? = null
     private var exportTitle: String? = null
     private var exportText: String? = null
+    private var batchExportIds = arrayListOf<String>()
 
     private val pickFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(::importUri) }
 
     private val saveArchive = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         uri?.let(::writeArchive)
+    }
+
+    private val saveTextBatch = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        val ids = batchExportIds.toList()
+        batchExportIds.clear()
+        if (uri != null) writeTextBatch(uri, ids)
     }
 
     private val saveText = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
@@ -120,6 +127,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         exportTitle = savedInstanceState?.getString("exportTitle")
         exportText = savedInstanceState?.getString("exportText")
+        batchExportIds = savedInstanceState?.getStringArrayList("batchExportIds") ?: arrayListOf()
         savedInstanceState?.getStringArrayList(KEY_BACK_STACK)?.let { saved ->
             val restored = saved.mapNotNull(::decodeScreen)
             if (restored.isNotEmpty()) {
@@ -140,6 +148,7 @@ class MainActivity : ComponentActivity() {
         outState.putStringArrayList(KEY_BACK_STACK, ArrayList(backStack.map(::encodeScreen)))
         outState.putString("exportTitle", exportTitle)
         outState.putString("exportText", exportText)
+        outState.putStringArrayList("batchExportIds", batchExportIds)
     }
 
     override fun onStart() {
@@ -294,6 +303,11 @@ class MainActivity : ComponentActivity() {
                     onPaste = ::importClipboard,
                     onWrite = { push(Screen.Editor(null)) },
                     onBackup = { saveArchive.launch(archiveName()) },
+                    onExportSelected = { ids ->
+                        batchExportIds = ArrayList(app.scripts.items.filter { it.id in ids }.map { it.id })
+                        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+                        saveTextBatch.launch("见舟提词-选中稿件-$stamp.zip")
+                    },
                     onRestore = ::pickArchive,
                 )
                 is Screen.Script -> ScriptScreen(
@@ -565,6 +579,21 @@ class MainActivity : ComponentActivity() {
                     DiagLog.e("Backup failed", it)
                     toast(getString(R.string.backup_failed, it.message ?: it.javaClass.simpleName))
                 }
+            }
+        }.start()
+    }
+
+    private fun writeTextBatch(uri: Uri, ids: List<String>) {
+        val scripts = ids.mapNotNull(app.scripts::documentOf)
+            .map { ScriptArchive.Entry(it.title, it.toEditableText()) }
+        Thread {
+            val result = runCatching {
+                contentResolver.openOutputStream(uri, "wt")?.use { ScriptArchive.writeText(scripts, it) }
+                    ?: error("无法写入所选文件")
+            }
+            runOnUiThread {
+                result.onSuccess { toast(getString(R.string.library_export_saved, scripts.size)) }
+                    .onFailure { toast(getString(R.string.script_export_failed, it.localizedMessage)) }
             }
         }.start()
     }

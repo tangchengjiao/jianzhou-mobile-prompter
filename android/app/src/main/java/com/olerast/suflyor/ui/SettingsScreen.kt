@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -261,13 +262,14 @@ private fun OverlayPage() {
         onMinus = { font = (font - 2).coerceAtLeast(14); s.fontSp = font },
         onPlus = { font = (font + 2).coerceAtMost(48); s.fontSp = font },
     )
-    StepperRow(
-        stringResource(R.string.settings_opacity_title),
-        stringResource(R.string.settings_percent_value, alpha),
-        stringResource(R.string.settings_opacity_hint),
-        onMinus = { alpha = (alpha - 8).coerceAtLeast(24); s.overlayAlpha = alpha },
-        onPlus = { alpha = (alpha + 8).coerceAtMost(96); s.overlayAlpha = alpha },
-    )
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.settings_opacity_title), modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.settings_percent_value, alpha), color = Palette.TextSecondary)
+        }
+        Slider(value = alpha.toFloat(), onValueChange = { alpha = it.toInt(); s.overlayAlpha = alpha }, valueRange = 0f..100f)
+        Text(stringResource(R.string.settings_opacity_hint), style = MaterialTheme.typography.bodySmall, color = Palette.TextSecondary)
+    }
     ToggleRow(stringResource(R.string.settings_rotate_title), stringResource(R.string.settings_rotate_hint), autoRotate) {
         autoRotate = it
         s.autoRotate = it

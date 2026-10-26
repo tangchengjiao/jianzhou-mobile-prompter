@@ -84,8 +84,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=ios-v0.1.0-preview.3
+          tag=ios-v0.1.0-preview.4
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title '见舟提词 iOS：一键保存 TXT 到文件' --notes '首页可保存稿件副本，一键将 UTF-8 TXT 写入“文件”App 中可见的“导出稿件”目录，并恢复上次打开的稿件。未签名 IPA 需本人自用签名安装。构建与 iPhone 13 / iOS 27 模拟器测试来自本次运行；真实录像兼容性仍待本人真机验证。'
+            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title '见舟提词 iOS：App 内拍摄与语音跟读' --notes '新增 App 内拍摄，录像和中文识别共用同一路收音；提词框支持自由移动、缩放和底色透明度，文字不写入视频。视频可保存到相册或分享。系统画中画仍为匀速，并在界面说明位置限制。未签名 IPA 需自用签名安装；设备编译与模拟器回归通过，真实拍摄、收音与语音跟读待 iPhone 实测。'
           fi
           gh release upload "$tag" build/JianzhouPrompter-unsigned.ipa build/ios-home.png --clobber

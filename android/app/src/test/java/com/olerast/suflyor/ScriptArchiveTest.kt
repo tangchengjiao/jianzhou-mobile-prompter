@@ -11,8 +11,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
+import java.io.ByteArrayInputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import java.util.zip.ZipInputStream
 
 class ScriptArchiveTest {
     @Test
@@ -52,6 +54,22 @@ class ScriptArchiveTest {
         assertEquals(0, contents.dropped)
         // What the app does with an entry: the Markdown parses back into the same document.
         assertEquals(3, MarkdownImporter.parse(contents.entries[0].text, "t").paragraphs.size)
+    }
+
+    @Test
+    fun batchTextExportKeepsChineseWordingAndDuplicateTitlesInSeparateFiles() {
+        val scripts = listOf(Entry("口播/调整版", "第一句。  \n\n**原样保留**。"), Entry("口播/调整版", "第二份改稿。"))
+        val output = ByteArrayOutputStream()
+        ScriptArchive.writeText(scripts, output)
+        val files = linkedMapOf<String, String>()
+        ZipInputStream(ByteArrayInputStream(output.toByteArray())).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                files[entry.name] = zip.readBytes().toString(Charsets.UTF_8)
+            }
+        }
+        assertEquals(listOf("口播 调整版.txt", "口播 调整版 (2).txt"), files.keys.toList())
+        assertEquals(scripts.map { it.title + "\n\n" + it.text }, files.values.toList())
     }
 
     @Test

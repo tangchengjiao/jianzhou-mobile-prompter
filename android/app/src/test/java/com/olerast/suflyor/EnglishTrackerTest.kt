@@ -58,11 +58,13 @@ class EnglishTrackerTest {
     @Test
     fun detectsLanguage() {
         fun detect(vararg p: Paragraph) = SpeechLang.detect(ScriptDocument("t", "test", p.toList()))
-        assertEquals(SpeechLang.RU, detect(Paragraph("Подписывайтесь на мой YouTube и Instagram, там больше видео.")))
+        // Only Mandarin/English models ship in this fork; other alphabets use the Mandarin default.
+        assertEquals(SpeechLang.ZH, detect(Paragraph("Подписывайтесь на мой YouTube и Instagram, там больше видео.")))
         assertEquals(SpeechLang.EN, detect(Paragraph("Say привет to everyone who is watching this video.")))
         assertEquals(SpeechLang.EN, detect(Paragraph("[Показать товар] Buy it now")))
         assertEquals(SpeechLang.EN, detect(Paragraph("Заголовок сценария", Paragraph.Kind.HEADING), Paragraph("Hello there")))
-        assertEquals(SpeechLang.RU, detect())
+        // The Chinese fork defaults an empty draft to Mandarin.
+        assertEquals(SpeechLang.ZH, detect())
         assertEquals(SpeechLang.EN, SpeechLang.fromCode("en"))
         assertEquals(null, SpeechLang.fromCode("auto"))
     }

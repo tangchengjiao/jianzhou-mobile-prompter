@@ -12,7 +12,8 @@ final class SpeechFollower {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var installedTap = false
-    private let audioRequest = AudioRequestSlot()
+    private nonisolated let audioRequest = AudioRequestSlot()
+    private var ownsAudioSession = false
     private var active = false
     private var generation = 0
     private var interruption: NSObjectProtocol?
@@ -29,28 +30,41 @@ final class SpeechFollower {
         }
     }
 
-    func start() async -> Bool {
-        stop()
-        let token = generation
+    func authorize() async -> Bool {
         let authorization = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
         }
         guard authorization == .authorized else { onFailure?("请允许语音识别，或使用匀速提词。"); return false }
-        guard generation == token, !Task.isCancelled else { return false }
         let microphone = await withCheckedContinuation { continuation in
             AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
         }
-        guard generation == token, !Task.isCancelled else { return false }
         guard microphone else { onFailure?("请允许麦克风，或使用匀速提词。"); return false }
+        return true
+    }
+
+    nonisolated func appendCapturedAudio(_ buffer: CMSampleBuffer) {
+        audioRequest.append(buffer)
+    }
+
+    func start(usingCapturedAudio: Bool = false) async -> Bool {
+        stop()
+        let token = generation
+        guard await authorize(), generation == token, !Task.isCancelled else { return false }
         guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "zh-CN")), recognizer.supportsOnDeviceRecognition else {
             onFailure?("这台手机暂未提供可用的中文端侧识别。可以先用匀速模式；本应用不会改用收费云接口。")
             return false
         }
         self.recognizer = recognizer
+        if usingCapturedAudio {
+            active = true
+            armRecognition()
+            return true
+        }
         do {
             let audio = AVAudioSession.sharedInstance()
             try audio.setCategory(.record, mode: .measurement)
             try audio.setActive(true)
+            ownsAudioSession = true
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
             guard format.sampleRate > 0, format.channelCount > 0 else {
@@ -99,10 +113,10 @@ final class SpeechFollower {
         audioRequest.set(nil)
         request?.endAudio(); task?.cancel(); task = nil; request = nil
         // Do not deactivate another app's audio session when already stopped.
-        if recognizer != nil {
+        if ownsAudioSession {
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            recognizer = nil
         }
+        ownsAudioSession = false; recognizer = nil
     }
 }
 
@@ -111,4 +125,5 @@ private final class AudioRequestSlot: @unchecked Sendable {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     func set(_ next: SFSpeechAudioBufferRecognitionRequest?) { lock.lock(); request = next; lock.unlock() }
     func append(_ buffer: AVAudioPCMBuffer) { lock.lock(); defer { lock.unlock() }; request?.append(buffer) }
+    func append(_ buffer: CMSampleBuffer) { lock.lock(); defer { lock.unlock() }; request?.appendAudioSampleBuffer(buffer) }
 }

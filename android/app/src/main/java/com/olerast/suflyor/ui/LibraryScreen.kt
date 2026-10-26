@@ -21,6 +21,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -54,12 +58,15 @@ fun LibraryScreen(
     onPaste: () -> Unit,
     onWrite: () -> Unit,
     onBackup: () -> Unit,
+    onExportSelected: (Set<String>) -> Unit,
     onRestore: () -> Unit,
 ) {
     val app = App.instance
     var query by remember { mutableStateOf("") }
     var showAdd by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var selecting by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf(emptySet<String>()) }
     val items = app.scripts.items.filter { query.isBlank() || it.title.contains(query.trim(), ignoreCase = true) }
 
     Box(Modifier.fillMaxSize().background(Palette.Bg)) {
@@ -74,6 +81,9 @@ fun LibraryScreen(
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.weight(1f),
                     )
+                    TextButton(onClick = { selecting = !selecting; selected = emptySet() }) {
+                        Text(stringResource(if (selecting) R.string.common_cancel else R.string.library_export_batch))
+                    }
                     IconButton(onClick = onSettings) {
                         Ic(R.drawable.ic_settings, stringResource(R.string.settings_title), tint = Palette.TextSecondary)
                     }
@@ -136,8 +146,26 @@ fun LibraryScreen(
                     }
                 }
             }
+            if (selecting) {
+                item {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        val all = items.isNotEmpty() && items.all { it.id in selected }
+                        Checkbox(checked = all, onCheckedChange = { checked ->
+                            val visible = items.map { it.id }.toSet()
+                            selected = if (checked) selected + visible else selected - visible
+                        })
+                        Text(stringResource(R.string.library_export_select_all), modifier = Modifier.weight(1f))
+                        Text(stringResource(R.string.library_export_count, selected.size), color = Palette.TextSecondary)
+                    }
+                }
+            }
             items(items, key = { it.id }) { meta ->
-                ScriptCard(meta, current = meta.id == app.scripts.currentId, onClick = { onOpen(meta.id) })
+                ScriptCard(meta, current = meta.id == app.scripts.currentId,
+                    selected = if (selecting) meta.id in selected else null,
+                    onClick = {
+                        if (selecting) selected = if (meta.id in selected) selected - meta.id else selected + meta.id
+                        else onOpen(meta.id)
+                    })
             }
             if (items.isEmpty()) {
                 item {
@@ -151,7 +179,13 @@ fun LibraryScreen(
             }
         }
 
-        Box(
+        if (selecting) {
+            Button(
+                onClick = { onExportSelected(selected) }, enabled = selected.isNotEmpty(),
+                colors = ButtonDefaults.buttonColors(containerColor = Palette.Accent, contentColor = Palette.OnAccent),
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(20.dp).fillMaxWidth().height(52.dp),
+            ) { Text(stringResource(R.string.library_export_action, selected.size)) }
+        } else Box(
             Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(20.dp).size(62.dp)
                 .clip(RoundedCornerShape(20.dp)).background(Palette.Accent).clickable { showAdd = true },
             contentAlignment = Alignment.Center,
@@ -204,11 +238,15 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun ScriptCard(meta: ScriptRepository.Meta, current: Boolean, onClick: () -> Unit) {
+private fun ScriptCard(meta: ScriptRepository.Meta, current: Boolean, selected: Boolean? = null, onClick: () -> Unit) {
     val wpm = App.instance.settings.autoScrollWpm
     val secs = if (wpm > 0) (meta.words * 60 + wpm - 1) / wpm else 0
     Card(Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth(), onClick = onClick) {
         Row(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (selected != null) {
+                Checkbox(checked = selected, onCheckedChange = { onClick() })
+                Spacer(Modifier.width(6.dp))
+            }
             Column(Modifier.weight(1f)) {
                 Text(meta.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
@@ -218,7 +256,7 @@ private fun ScriptCard(meta: ScriptRepository.Meta, current: Boolean, onClick: (
                     color = Palette.TextSecondary,
                 )
             }
-            if (current) StatusDot(Palette.Accent)
+            if (current && selected == null) StatusDot(Palette.Accent)
         }
     }
 }

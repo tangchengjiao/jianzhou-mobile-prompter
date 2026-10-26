@@ -56,5 +56,6 @@ final class PrompterFlowTests: XCTestCase {
         XCTAssertTrue(saved.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "导出稿件")).firstMatch.exists)
         saved.buttons["知道了"].tap()
         XCTAssertTrue(app.buttons["导出 TXT"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["分享刚导出的 TXT"].exists)
     }
 }

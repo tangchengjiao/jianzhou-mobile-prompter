@@ -31,20 +31,31 @@ object ScriptArchive {
     private const val MAX_TOTAL = 32L * 1024 * 1024
 
     fun write(scripts: List<Entry>, out: OutputStream) {
+        writeEntries(scripts, out, plainText = false)
+    }
+
+    /** User-facing batch export: one readable UTF-8 TXT per selected script. */
+    fun writeText(scripts: List<Entry>, out: OutputStream) {
+        writeEntries(scripts, out, plainText = true)
+    }
+
+    private fun writeEntries(scripts: List<Entry>, out: OutputStream, plainText: Boolean) {
         val used = HashSet<String>()
         val languages = StringBuilder()
+        val extension = if (plainText) "txt" else "md"
         ZipOutputStream(out).use { zip ->
             for (script in scripts) {
                 val base = fileName(script.title)
-                var name = "$base.md"
+                var name = "$base.$extension"
                 var n = 2
-                while (!used.add(name.lowercase())) name = "$base ($n).md".also { n++ }
+                while (!used.add(name.lowercase())) name = "$base ($n).$extension".also { n++ }
                 zip.putNextEntry(ZipEntry(name))
-                zip.write(script.text.toByteArray(Charsets.UTF_8))
+                val text = if (plainText) script.title + "\n\n" + script.text else script.text
+                zip.write(text.toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
                 script.speechLang?.let { languages.append(it).append('\t').append(name).append('\n') }
             }
-            if (languages.isNotEmpty()) {
+            if (!plainText && languages.isNotEmpty()) {
                 zip.putNextEntry(ZipEntry(LANGUAGES_FILE))
                 zip.write(languages.toString().toByteArray(Charsets.UTF_8))
                 zip.closeEntry()

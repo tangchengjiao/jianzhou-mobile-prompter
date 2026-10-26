@@ -110,7 +110,7 @@ enum class SpeechLang(val code: String) {
 
         /**
          * Majority alphabet of what the reader will say: body paragraphs outside [stage directions].
-         * Ties and empty scripts count as Russian.
+         * This fork bundles Mandarin/English models. Empty or unsupported-alphabet scripts default to Mandarin.
          */
         fun detect(doc: ScriptDocument): SpeechLang {
             var han = 0

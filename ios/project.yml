@@ -7,7 +7,7 @@ settings:
   base:
     SWIFT_VERSION: "5.10"
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "3"
+    CURRENT_PROJECT_VERSION: "4"
     CODE_SIGN_STYLE: Automatic
     SWIFT_STRICT_CONCURRENCY: targeted
 targets:
@@ -32,7 +32,9 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
-        NSMicrophoneUsageDescription: 全屏语音练习时，用麦克风定位你正在朗读的句子。
+        NSCameraUsageDescription: 拍摄口播视频，并在相机预览中显示可拖动的提词文字。
+        NSPhotoLibraryAddUsageDescription: 将你在见舟提词中拍摄的视频保存到相册。
+        NSMicrophoneUsageDescription: 为口播视频录制声音，并用同一路声音定位你正在朗读的句子。
         NSSpeechRecognitionUsageDescription: 将你的声音在支持的设备上转为文字，让稿子跟随朗读。
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

@@ -53,6 +53,8 @@ final class PrompterModel: ObservableObject {
     @Published private(set) var counting: Int?
     @Published var message: String?
     @Published var voiceMode = false
+    @Published var cameraOpacity: Double = 0.6 { didSet { saveSettings() } }
+    var useCapturedAudio = false
     private var ticker: AnyCancellable?
     private var countdownTask: Task<Void, Never>?
     private var playGeneration = 0
@@ -74,6 +76,7 @@ final class PrompterModel: ObservableObject {
         if let saved = defaults.dictionary(forKey: "jianzhou.prompter.settings.v1") {
             fontSize = saved["font"] as? Double ?? 32; speed = saved["speed"] as? Double ?? 180
             mirror = saved["mirror"] as? Bool ?? false; countdown = saved["countdown"] as? Int ?? 3
+            cameraOpacity = saved["cameraOpacity"] as? Double ?? 0.6
         }
         speech.onTranscript = { [weak self] text in
             guard let self, self.voiceMode, self.playing else { return }
@@ -162,7 +165,7 @@ final class PrompterModel: ObservableObject {
     private func begin(generation: Int) async {
         guard generation == playGeneration, !Task.isCancelled else { return }
         if voiceMode {
-            let ready = await speech.start()
+            let ready = await speech.start(usingCapturedAudio: useCapturedAudio)
             if !ready { return }
         }
         guard generation == playGeneration, !Task.isCancelled else { speech.stop(); return }
@@ -186,6 +189,6 @@ final class PrompterModel: ObservableObject {
         if let data = try? JSONEncoder().encode(scripts) { defaults.set(data, forKey: storeKey) }
     }
     private func saveSettings() {
-        defaults.set(["font": fontSize, "speed": speed, "mirror": mirror, "countdown": countdown], forKey: "jianzhou.prompter.settings.v1")
+        defaults.set(["font": fontSize, "speed": speed, "mirror": mirror, "countdown": countdown, "cameraOpacity": cameraOpacity], forKey: "jianzhou.prompter.settings.v1")
     }
 }

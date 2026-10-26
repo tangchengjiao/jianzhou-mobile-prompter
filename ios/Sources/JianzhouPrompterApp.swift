@@ -13,7 +13,7 @@ struct JianzhouPrompterApp: App {
                 .onAppear { pip.configure(model) }
                 .onChange(of: phase) { _, value in
                     if value == .background && model.voiceMode {
-                        model.pause(); model.message = "已离开全屏语音练习，麦克风已释放。"
+                        model.pause(); model.message = "已离开语音跟读，麦克风已释放。"
                     } else if value == .background && !pip.isActive && !pip.pending { model.pause() }
                 }
                 .alert("见舟提词", isPresented: Binding(get: { model.message != nil }, set: { if !$0 { model.message = nil } })) {
@@ -39,11 +39,12 @@ struct PromptHome: View {
     @State private var exportSaved = false
     @State private var exportAfterSettings = false
     @State private var exportedName = ""
+    @State private var exportedURL: URL?
     @State private var practice = false
     @State private var route: Route?
     @FocusState private var field: Field?
     enum Field: Hashable { case title, body }
-    enum Route: Hashable { case prepare, read }
+    enum Route: Hashable { case prepare, read, camera }
 
     private func beginExport() {
         field = nil
@@ -51,6 +52,7 @@ struct PromptHome: View {
         do {
             let file = try PromptFileStore.write(PromptExport(script: model.selected))
             exportedName = file.lastPathComponent
+            exportedURL = file
             exportSaved = true
         } catch {
             model.message = "导出失败：\(error.localizedDescription)"
@@ -87,6 +89,14 @@ struct PromptHome: View {
                             Button("保存副本") { field = nil; model.saveCopy() }
                             Button("导出 TXT") { beginExport() }.disabled(model.selected.text.isEmpty)
                         }.font(.caption)
+                        if let exportedURL {
+                            HStack {
+                                Spacer()
+                                ShareLink(item: exportedURL) {
+                                    Label("分享刚导出的 TXT", systemImage: "square.and.arrow.up")
+                                }.font(.caption)
+                            }
+                        }
                     }
                     .padding(20).background(.white, in: RoundedRectangle(cornerRadius: 20))
                     .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.gray.opacity(0.14)))
@@ -94,6 +104,10 @@ struct PromptHome: View {
                         Label("悬浮提词", systemImage: "text.bubble").tag(false)
                         Label("全屏练习", systemImage: "rectangle.inset.filled").tag(true)
                     }.pickerStyle(.segmented)
+                    Button {
+                        field = nil; model.pause(); route = .camera
+                    } label: { Label("拍摄并语音跟读", systemImage: "video.fill").frame(maxWidth: .infinity) }
+                        .buttonStyle(MainButton()).disabled(!model.hasText)
                     Button {
                         field = nil; model.pause(); route = practice ? .read : .prepare
                     } label: { HStack { Spacer(); Text(practice ? "开始全屏练习" : "准备悬浮提词"); Spacer(); Image(systemName: "arrow.right") } }
@@ -116,7 +130,7 @@ struct PromptHome: View {
                 ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("完成输入") { field = nil } }
             }
             .navigationDestination(item: $route) { target in
-                switch target { case .prepare: PromptPreparation(); case .read: PromptReader() }
+                switch target { case .prepare: PromptPreparation(); case .read: PromptReader(); case .camera: CameraView() }
             }
             .sheet(isPresented: $library) {
                 NavigationStack { List {
@@ -139,7 +153,7 @@ struct PromptHome: View {
             .alert("稿件已导出", isPresented: $exportSaved) {
                 Button("知道了", role: .cancel) {}
             } message: {
-                Text("文件：\(exportedName)\n在“文件”App →“在我的 iPhone 上”→“见舟提词”→“导出稿件”中查看或分享。")
+                Text("文件：\(exportedName)\n在“文件”App →“在我的 iPhone 上”→“见舟提词”→“导出稿件”中查看；需要云端备份时可点“分享刚导出的 TXT”。")
             }
         }
     }
@@ -158,6 +172,9 @@ struct PromptPreparation: View {
                 PiPPreview(controller: pip).frame(height: 230).clipShape(RoundedRectangle(cornerRadius: 18))
                 PromptAdjustments()
                 Label("匀速悬浮 · 不使用麦克风", systemImage: "mic.slash").font(.caption).foregroundStyle(.secondary)
+                Text("双指捏合调整大小，拖到屏幕四角。系统画中画不能停在中央，也没有透明底色；配合其他 App 录像时使用匀速。")
+                    .font(.footnote).foregroundStyle(.secondary)
+                NavigationLink { CameraView() } label: { Label("需要语音跟拍？在这里拍摄", systemImage: "video") }
                 Button { pip.isActive ? pip.stop() : pip.start() } label: { Text(pip.isActive ? "停止悬浮提词" : "启动系统画中画").frame(maxWidth: .infinity) }
                     .buttonStyle(MainButton()).disabled(!pip.supported || !model.hasText)
                 if pip.pending { Button("取消等待") { pip.stop() }.frame(maxWidth: .infinity) }
@@ -229,10 +246,19 @@ struct PromptSettings: View {
     @EnvironmentObject private var model: PrompterModel
     @Environment(\.dismiss) private var dismiss
     var export: (() -> Void)?
+    var camera = false
     var body: some View {
         NavigationStack {
             Form {
                 Section { PromptAdjustments() }
+                if camera {
+                    Section("拍摄提词窗") {
+                        Text("底色不透明度 \(Int(model.cameraOpacity * 100))%")
+                        Slider(value: $model.cameraOpacity, in: 0...1).accessibilityLabel("提词底色不透明度")
+                        Text("拖动提词框上方短线移动；拖右下角改变大小。提词文字不进入视频。")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
                 Section { Toggle("镜像文字", isOn: $model.mirror)
                     Picker("开始倒计时", selection: $model.countdown) { Text("关").tag(0); Text("3 秒").tag(3); Text("5 秒").tag(5) }
                 }
