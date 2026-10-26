@@ -24,7 +24,7 @@ final class CameraPresentationTests: XCTestCase {
     @MainActor func testLongSentenceScrollsByVisualLineWhileSentenceStaysTheSame() {
         let storage = NSTextStorage(), layout = NSLayoutManager()
         storage.addLayoutManager(layout)
-        let container = NSTextContainer(size: CGSize(width: 0, height: .greatestFiniteMagnitude))
+        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         layout.addTextContainer(container)
         let view = PromptTrackingTextView(frame: CGRect(x: 0, y: 0, width: 290, height: 150), textContainer: container)
         view.textContainer.widthTracksTextView = true

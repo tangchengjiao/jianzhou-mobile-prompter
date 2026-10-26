@@ -10,10 +10,10 @@ struct CameraPromptText: UIViewRepresentable {
     func makeUIView(context: Context) -> PromptTrackingTextView {
         let storage = NSTextStorage()
         let layout = NSLayoutManager(); storage.addLayoutManager(layout)
-        let container = NSTextContainer(size: CGSize(width: 0, height: .greatestFiniteMagnitude)); layout.addTextContainer(container)
+        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude)); layout.addTextContainer(container)
         let view = PromptTrackingTextView(frame: .zero, textContainer: container)
         view.isEditable = false; view.isSelectable = false
-        view.backgroundColor = .clear; view.showsVerticalScrollIndicator = false
+        view.backgroundColor = UIColor.clear; view.showsVerticalScrollIndicator = false
         view.textContainer.widthTracksTextView = true
         view.textContainer.lineFragmentPadding = 0
         view.accessibilityLabel = "拍摄提词正文"
@@ -59,7 +59,7 @@ final class PromptTrackingTextView: UITextView {
         guard textStorage.length > 0, bounds.width > 0 else { return }
         let width = max(1, bounds.width - textContainerInset.left - textContainerInset.right)
         if abs(textContainer.size.width - width) > 1 {
-            textContainer.size = CGSize(width: width, height: .greatestFiniteMagnitude)
+            textContainer.size = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         }
         layoutManager.ensureLayout(for: textContainer)
         guard layoutManager.numberOfGlyphs > 0 else { return }
