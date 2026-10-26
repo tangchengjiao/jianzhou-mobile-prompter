@@ -3,6 +3,17 @@ import XCTest
 @testable import JianzhouPrompter
 
 final class ScriptStorageTests: XCTestCase {
+    @MainActor func testPreviewVideoAndTextMirrorsPersistIndependently() {
+        let suite = "jianzhou.camera.settings.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = PrompterModel(defaults: defaults)
+        model.cameraPreviewMirror = false; model.cameraVideoMirror = true; model.mirror = false
+        let restored = PrompterModel(defaults: defaults)
+        XCTAssertFalse(restored.cameraPreviewMirror)
+        XCTAssertTrue(restored.cameraVideoMirror)
+        XCTAssertFalse(restored.mirror)
+    }
     @MainActor func testEditedChineseCopyKeepsItsWordingAndSelectionAfterRelaunch() {
         let suite = "jianzhou.prompter.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

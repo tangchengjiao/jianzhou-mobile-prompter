@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import NaturalLanguage
 
 struct PromptScript: Identifiable, Codable {
     var id: UUID = UUID()
@@ -54,6 +55,10 @@ final class PrompterModel: ObservableObject {
     @Published var message: String?
     @Published var voiceMode = false
     @Published var cameraOpacity: Double = 0.6 { didSet { saveSettings() } }
+    @Published var cameraPreviewMirror = true { didSet { saveSettings() } }
+    @Published var cameraVideoMirror = false { didSet { saveSettings() } }
+    @Published private(set) var heardText = ""
+    @Published private(set) var voiceStatus = "等待开始"
     var useCapturedAudio = false
     private var ticker: AnyCancellable?
     private var countdownTask: Task<Void, Never>?
@@ -61,6 +66,7 @@ final class PrompterModel: ObservableObject {
     private var cachedText: String?
     private var cachedUnits = ScriptUnits("")
     private var cachedSentences: [(range: NSRange, text: String)] = []
+    private var recognitionHints: [String] = []
     private var lastTime: TimeInterval = 0
     let speech = SpeechFollower()
     private let defaults: UserDefaults
@@ -77,13 +83,22 @@ final class PrompterModel: ObservableObject {
             fontSize = saved["font"] as? Double ?? 32; speed = saved["speed"] as? Double ?? 180
             mirror = saved["mirror"] as? Bool ?? false; countdown = saved["countdown"] as? Int ?? 3
             cameraOpacity = saved["cameraOpacity"] as? Double ?? 0.6
+            cameraPreviewMirror = saved["cameraPreviewMirror"] as? Bool ?? true
+            cameraVideoMirror = saved["cameraVideoMirror"] as? Bool ?? false
         }
         speech.onTranscript = { [weak self] text in
             guard let self, self.voiceMode, self.playing else { return }
+            self.heardText = text
             let result = ScriptAligner(script: self.units).align(text, near: Int(self.cursor))
             if result.matched { self.cursor = Double(result.cursor) }
+            self.voiceStatus = result.matched ? "跟读中" : "听到了，正在匹配稿件"
         }
-        speech.onFailure = { [weak self] text in self?.pause(); self?.message = text }
+        speech.onState = { [weak self] text in self?.voiceStatus = text }
+        speech.onFailure = { [weak self] text in
+            guard let self else { return }
+            self.pause(); self.voiceStatus = text
+            if !self.useCapturedAudio { self.message = text }
+        }
         ticker = Timer.publish(every: 1.0 / 30, on: .main, in: .common).autoconnect().sink { [weak self] _ in self?.tick() }
     }
 
@@ -95,6 +110,14 @@ final class PrompterModel: ObservableObject {
             let source = text as NSString
             let regex = try! NSRegularExpression(pattern: "[^。！？\\n]+[。！？]?")
             cachedSentences = regex.matches(in: text, range: NSRange(location: 0, length: source.length)).map { ($0.range, source.substring(with: $0.range)) }
+            let tokenizer = NLTokenizer(unit: .word); tokenizer.string = text
+            var hints = Set<String>()
+            recognitionHints = []
+            tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { range, _ in
+                let word = String(text[range])
+                if (2...12).contains(word.count), hints.insert(word).inserted { self.recognitionHints.append(word) }
+                return self.recognitionHints.count < 80
+            }
         }
         return cachedUnits
     }
@@ -130,6 +153,7 @@ final class PrompterModel: ObservableObject {
     }
     func seek(sourceOffset: Int) {
         pause()
+        if sourceOffset == 0 { heardText = "" }
         cursor = Double(units.sourceOffsets.firstIndex { $0 >= sourceOffset } ?? units.characters.count)
     }
     func skip(_ direction: Int) {
@@ -165,7 +189,7 @@ final class PrompterModel: ObservableObject {
     private func begin(generation: Int) async {
         guard generation == playGeneration, !Task.isCancelled else { return }
         if voiceMode {
-            let ready = await speech.start(usingCapturedAudio: useCapturedAudio)
+            let ready = await speech.start(usingCapturedAudio: useCapturedAudio, context: recognitionHints)
             if !ready { return }
         }
         guard generation == playGeneration, !Task.isCancelled else { speech.stop(); return }
@@ -175,6 +199,7 @@ final class PrompterModel: ObservableObject {
         playGeneration += 1
         countdownTask?.cancel(); countdownTask = nil; counting = nil
         playing = false; speech.stop()
+        if voiceMode { voiceStatus = "已暂停" }
     }
     func toggle() { if playing || counting != nil { pause() } else { play() } }
     func prepareForPiP() { pause(); voiceMode = false }
@@ -189,6 +214,7 @@ final class PrompterModel: ObservableObject {
         if let data = try? JSONEncoder().encode(scripts) { defaults.set(data, forKey: storeKey) }
     }
     private func saveSettings() {
-        defaults.set(["font": fontSize, "speed": speed, "mirror": mirror, "countdown": countdown, "cameraOpacity": cameraOpacity], forKey: "jianzhou.prompter.settings.v1")
+        defaults.set(["font": fontSize, "speed": speed, "mirror": mirror, "countdown": countdown, "cameraOpacity": cameraOpacity,
+                      "cameraPreviewMirror": cameraPreviewMirror, "cameraVideoMirror": cameraVideoMirror], forKey: "jianzhou.prompter.settings.v1")
     }
 }

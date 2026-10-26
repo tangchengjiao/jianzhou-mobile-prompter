@@ -247,11 +247,18 @@ struct PromptSettings: View {
     @Environment(\.dismiss) private var dismiss
     var export: (() -> Void)?
     var camera = false
+    var recording = false
     var body: some View {
         NavigationStack {
             Form {
                 Section { PromptAdjustments() }
                 if camera {
+                    Section("前置镜头镜像") {
+                        Toggle("取景镜像", isOn: $model.cameraPreviewMirror)
+                        Toggle("成片镜像", isOn: $model.cameraVideoMirror)
+                        Text("取景和成片可分别设置；开始录像前调整，不影响下方的文字镜像。")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }.disabled(recording)
                     Section("拍摄提词窗") {
                         Text("底色不透明度 \(Int(model.cameraOpacity * 100))%")
                         Slider(value: $model.cameraOpacity, in: 0...1).accessibilityLabel("提词底色不透明度")
@@ -263,7 +270,7 @@ struct PromptSettings: View {
                     Picker("开始倒计时", selection: $model.countdown) { Text("关").tag(0); Text("3 秒").tag(3); Text("5 秒").tag(5) }
                 }
                 if let export { Section { Button("导出当前稿件", action: export) } }
-                Section { Text("语音跟读用于全屏练习；悬浮到其他拍摄 App 时使用匀速模式。真实兼容性请以本机录像测试为准。").font(.footnote) }
+                Section { Text("语音跟读可用于全屏练习和本 App 内拍摄；系统画中画配合其他拍摄 App 时使用匀速模式。").font(.footnote) }
             }.navigationTitle("按你的习惯来").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button("完成") { dismiss() } }
         }.tint(Brand.purple)

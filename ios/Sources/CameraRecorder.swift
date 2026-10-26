@@ -46,7 +46,7 @@ final class CameraRecorder: ObservableObject {
         } catch { status = error.localizedDescription }
     }
 
-    func start() async -> Bool {
+    func start(mirrored: Bool = false) async -> Bool {
         guard ready, !recording, !finishing else { return false }
         do {
             let folder = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -58,7 +58,7 @@ final class CameraRecorder: ObservableObject {
             while FileManager.default.fileExists(atPath: url.path) {
                 url = folder.appendingPathComponent("见舟口播-\(label.string(from: Date()))-\(number).mov"); number += 1
             }
-            try await pipeline.start(url: url, angle: captureAngle)
+            try await pipeline.start(url: url, angle: captureAngle, mirrored: mirrored)
             recording = true; startedAt = Date(); status = "正在录像"
             return true
         } catch { status = "无法录像：\(error.localizedDescription)"; return false }
@@ -69,8 +69,11 @@ final class CameraRecorder: ObservableObject {
         recording = false; finishing = true; status = "正在保存视频"
         Task {
             do {
-                lastVideo = try await pipeline.finish()
-                status = "视频已保存到本机，可保存到相册或分享给剪映。"
+                let video = try await pipeline.finish()
+                await pipeline.pauseForReview()
+                ready = false
+                lastVideo = video
+                status = "录制完成，可直接预览、重拍或保存。"
             } catch { status = "视频未保存：\(error.localizedDescription)" }
             finishing = false
         }
@@ -86,6 +89,11 @@ final class CameraRecorder: ObservableObject {
         if recording { stop() }
         pipeline.close()
         ready = false
+    }
+
+    func prepareForReview() async {
+        ready = false
+        await pipeline.pauseForReview()
     }
 
     func saveToPhotos() async {
@@ -210,7 +218,7 @@ final class CameraPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
         }
     }
 
-    func start(url: URL, angle: CGFloat) async throws {
+    func start(url: URL, angle: CGFloat, mirrored: Bool) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async {
                 do {
@@ -223,7 +231,9 @@ final class CameraPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
                     let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
                     let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
                     videoInput.expectsMediaDataInRealTime = true; audioInput.expectsMediaDataInRealTime = true
-                    videoInput.transform = CGAffineTransform(rotationAngle: angle * .pi / 180)
+                    let dimensions = CGSize(width: (videoSettings[AVVideoWidthKey] as? NSNumber)?.doubleValue ?? 1920,
+                                            height: (videoSettings[AVVideoHeightKey] as? NSNumber)?.doubleValue ?? 1080)
+                    videoInput.transform = CameraVideoTransform.make(size: dimensions, angle: angle, mirrored: mirrored)
                     guard writer.canAdd(videoInput), writer.canAdd(audioInput) else { throw self.failure("无法建立音视频文件。") }
                     writer.add(videoInput); writer.add(audioInput)
                     guard writer.startWriting() else { throw writer.error ?? self.failure("无法开始写入视频。") }
@@ -281,6 +291,16 @@ final class CameraPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
             self.audioSink = nil
             if self.session.isRunning { self.session.stopRunning() }
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+    }
+
+    func pauseForReview() async {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                if self.session.isRunning { self.session.stopRunning() }
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                continuation.resume()
+            }
         }
     }
 }

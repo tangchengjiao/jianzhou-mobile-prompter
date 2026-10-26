@@ -29,4 +29,26 @@ final class ScriptAlignmentTests: XCTestCase {
         XCTAssertTrue(match.matched)
         XCTAssertEqual(match.cursor, 9)
     }
+
+    func testPartialWithOneRecognitionSubstitutionStillAdvances() {
+        let script = ScriptUnits("我拍视频的时候最怕的不是忘词而是提词没有跟上。")
+        let match = ScriptAligner(script: script).align("我拍视频的时侯", near: 0)
+        XCTAssertTrue(match.matched)
+        XCTAssertGreaterThanOrEqual(match.cursor, 7)
+    }
+
+    func testLongExactEvidenceCanReacquireAfterSkippedParagraph() {
+        let prefix = String(repeating: "甲", count: 350)
+        let phrase = "把复杂的问题说清楚才是做内容的第一步"
+        let script = ScriptUnits(prefix + phrase)
+        let match = ScriptAligner(script: script).align(phrase, near: 0)
+        XCTAssertTrue(match.matched)
+        XCTAssertEqual(match.cursor, script.characters.count)
+    }
+
+    func testThreeCharacterPartialDoesNotWaitForSentenceEnd() {
+        let match = ScriptAligner(script: ScriptUnits("我拍视频的时候先把想讲的话说清楚")).align("我拍视", near: 0)
+        XCTAssertTrue(match.matched)
+        XCTAssertEqual(match.cursor, 3)
+    }
 }

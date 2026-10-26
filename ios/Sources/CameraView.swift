@@ -10,6 +10,7 @@ struct CameraView: View {
     @State private var settings = false
     @State private var countdown: Int?
     @State private var starting: Task<Void, Never>?
+    @State private var review: RecordedVideo?
     @AppStorage("camera.prompt.x") private var x = 0.5
     @AppStorage("camera.prompt.y") private var y = 0.28
     @AppStorage("camera.prompt.width") private var width = 0.88
@@ -19,13 +20,13 @@ struct CameraView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let area = CGSize(width: geometry.size.width, height: max(180, geometry.size.height - 170))
+            let area = CGSize(width: geometry.size.width, height: max(180, geometry.size.height - 210))
             let panelWidth = min(max(180, area.width * width), area.width - 16)
             let panelHeight = min(max(110, area.height * height), area.height)
             let center = CGPoint(x: min(max(panelWidth / 2 + 8, area.width * x), area.width - panelWidth / 2 - 8),
                                  y: min(max(panelHeight / 2, area.height * y), area.height - panelHeight / 2))
             ZStack(alignment: .bottom) {
-                CameraPreview(recorder: recorder).ignoresSafeArea()
+                CameraPreview(recorder: recorder, mirrored: model.cameraPreviewMirror).ignoresSafeArea()
                 VStack { Spacer() }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 promptPanel(size: CGSize(width: panelWidth, height: panelHeight), area: area, center: center)
                     .frame(width: panelWidth, height: panelHeight)
@@ -36,6 +37,17 @@ struct CameraView: View {
                 }
                 VStack(spacing: 10) {
                     Text(recorder.status).font(.caption).foregroundStyle(.white).lineLimit(2)
+                    if model.voiceMode {
+                        HStack {
+                            Text(model.voiceStatus).lineLimit(1)
+                            Spacer()
+                            if recorder.recording && !model.playing { Button("重新跟读") { model.resumeImmediately() } }
+                        }.font(.caption2).foregroundStyle(.white)
+                        if !model.heardText.isEmpty {
+                            Text("听到：\(String(model.heardText.suffix(32)))").font(.caption2)
+                                .foregroundStyle(.white.opacity(0.7)).lineLimit(1)
+                        }
+                    }
                     HStack(spacing: 25) {
                         Button { settings = true } label: { Image(systemName: "slider.horizontal.3").font(.title2) }
                             .accessibilityLabel("拍摄提词设置")
@@ -60,6 +72,10 @@ struct CameraView: View {
                     }.font(.caption).foregroundStyle(.white)
                     if let url = recorder.lastVideo, !recorder.recording, !recorder.finishing {
                         HStack {
+                            Button("预览") {
+                                Task { await recorder.prepareForReview(); review = RecordedVideo(url: url) }
+                            }
+                            Spacer()
                             Button("保存到相册") { Task { await recorder.saveToPhotos() } }
                             Spacer()
                             ShareLink("分享视频", item: url)
@@ -70,7 +86,13 @@ struct CameraView: View {
         }
         .navigationTitle("拍摄跟读").navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.black, for: .navigationBar).toolbarColorScheme(.dark, for: .navigationBar)
-        .sheet(isPresented: $settings) { PromptSettings(camera: true) }
+        .sheet(isPresented: $settings) { PromptSettings(camera: true, recording: recorder.recording) }
+        .sheet(item: $review, onDismiss: {
+            if phase == .active { Task { await recorder.prepare(speech: model.speech) } }
+        }) { clip in VideoReview(clip: clip, recorder: recorder) }
+        .onChange(of: recorder.lastVideo) { _, url in
+            if let url { model.pause(); review = RecordedVideo(url: url) }
+        }
         .task {
             pip.stop(); model.pause(); model.voiceMode = true; model.useCapturedAudio = true
             recorder.onInterruption = { cancelStart(); model.pause() }
@@ -78,7 +100,7 @@ struct CameraView: View {
         }
         .onChange(of: phase) { _, value in
             if value == .background { cancelStart(); model.pause(); recorder.close() }
-            else if value == .active, !recorder.ready { Task { await recorder.prepare(speech: model.speech) } }
+            else if value == .active, !recorder.ready, review == nil { Task { await recorder.prepare(speech: model.speech) } }
         }
         .onDisappear { cancelStart(); model.pause(); model.useCapturedAudio = false; recorder.close() }
     }
@@ -86,6 +108,7 @@ struct CameraView: View {
     private func toggleRecording() {
         if recorder.recording { model.pause(); recorder.stop(); return }
         if starting != nil { cancelStart(); return }
+        model.seek(sourceOffset: 0)
         starting = Task {
             if model.voiceMode, !(await model.speech.authorize()) { starting = nil; return }
             for value in stride(from: model.countdown, through: 1, by: -1) {
@@ -95,7 +118,8 @@ struct CameraView: View {
             }
             countdown = nil
             guard !Task.isCancelled else { return }
-            if await recorder.start() {
+            let mirrorVideo = model.cameraVideoMirror && recorder.device?.position == .front
+            if await recorder.start(mirrored: mirrorVideo) {
                 if Task.isCancelled { recorder.stop() }
                 else { model.resumeImmediately() }
             }
@@ -118,19 +142,8 @@ struct CameraView: View {
                     x = min(max(size.width / 2 + 8, origin.x + value.translation.width), area.width - size.width / 2 - 8) / area.width
                     y = min(max(size.height / 2, origin.y + value.translation.height), area.height - size.height / 2) / area.height
                 }.onEnded { _ in dragOrigin = nil })
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        ForEach(Array(model.sentences.enumerated()), id: \.offset) { index, sentence in
-                            Text(sentence.text).font(.system(size: model.fontSize, weight: .semibold)).lineSpacing(6)
-                                .foregroundStyle(.white.opacity(index < model.sentenceIndex ? 0.35 : 1))
-                                .frame(maxWidth: .infinity, alignment: .leading).id(index)
-                        }
-                    }.padding(.horizontal, 14).padding(.bottom, 18).scaleEffect(x: model.mirror ? -1 : 1, y: 1)
-                }.onChange(of: model.sentenceIndex) { _, index in
-                    withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(index, anchor: .top) }
-                }
-            }
+            CameraPromptText(text: model.selected.text, sourceOffset: model.sourceOffset, fontSize: model.fontSize)
+                .scaleEffect(x: model.mirror ? -1 : 1, y: 1)
             HStack {
                 Text(model.voiceMode ? "语音跟读" : "匀速提词").font(.system(size: 10)).padding(.leading, 12)
                 Spacer()
@@ -152,13 +165,14 @@ struct CameraView: View {
 
 struct CameraPreview: UIViewRepresentable {
     @ObservedObject var recorder: CameraRecorder
+    let mirrored: Bool
     func makeUIView(context: Context) -> CameraPreviewHost {
         let view = CameraPreviewHost()
         view.preview.session = recorder.pipeline.session
         view.onCaptureAngle = { recorder.captureAngle = $0 }
         return view
     }
-    func updateUIView(_ uiView: CameraPreviewHost, context: Context) { uiView.configure(device: recorder.device) }
+    func updateUIView(_ uiView: CameraPreviewHost, context: Context) { uiView.configure(device: recorder.device, mirrored: mirrored) }
 }
 
 final class CameraPreviewHost: UIView {
@@ -167,7 +181,12 @@ final class CameraPreviewHost: UIView {
     var onCaptureAngle: ((CGFloat) -> Void)?
     private var coordinator: AVCaptureDevice.RotationCoordinator?
     private var observations: [NSKeyValueObservation] = []
-    func configure(device: AVCaptureDevice?) {
+    private var mirrorPreview = true
+    func configure(device: AVCaptureDevice?, mirrored: Bool) {
+        mirrorPreview = mirrored && device?.position == .front
+        if let connection = preview.connection, connection.isVideoMirroringSupported {
+            connection.automaticallyAdjustsVideoMirroring = false; connection.isVideoMirrored = mirrorPreview
+        }
         guard let device, coordinator?.device !== device else { return }
         observations.removeAll()
         preview.videoGravity = .resizeAspectFill
@@ -180,7 +199,7 @@ final class CameraPreviewHost: UIView {
                     guard let connection = self?.preview.connection, connection.isVideoRotationAngleSupported(angle) else { return }
                     connection.videoRotationAngle = angle
                     if connection.isVideoMirroringSupported {
-                        connection.automaticallyAdjustsVideoMirroring = false; connection.isVideoMirrored = device.position == .front
+                        connection.automaticallyAdjustsVideoMirroring = false; connection.isVideoMirrored = self?.mirrorPreview ?? false
                     }
                 }
             },

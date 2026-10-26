@@ -7,6 +7,7 @@ import Speech
 final class SpeechFollower {
     var onTranscript: ((String) -> Void)?
     var onFailure: ((String) -> Void)?
+    var onState: ((String) -> Void)?
     private let engine = AVAudioEngine()
     private var recognizer: SFSpeechRecognizer?
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -16,6 +17,11 @@ final class SpeechFollower {
     private var ownsAudioSession = false
     private var active = false
     private var generation = 0
+    private var recognitionGeneration = 0
+    private var retryCount = 0
+    private var context: [String] = []
+    private var restartTask: Task<Void, Never>?
+    private var rotationTask: Task<Void, Never>?
     private var interruption: NSObjectProtocol?
 
     init() {
@@ -46,7 +52,7 @@ final class SpeechFollower {
         audioRequest.append(buffer)
     }
 
-    func start(usingCapturedAudio: Bool = false) async -> Bool {
+    func start(usingCapturedAudio: Bool = false, context: [String] = []) async -> Bool {
         stop()
         let token = generation
         guard await authorize(), generation == token, !Task.isCancelled else { return false }
@@ -55,6 +61,8 @@ final class SpeechFollower {
             return false
         }
         self.recognizer = recognizer
+        self.context = Array(context.prefix(100))
+        retryCount = 0
         if usingCapturedAudio {
             active = true
             armRecognition()
@@ -85,29 +93,65 @@ final class SpeechFollower {
 
     private func armRecognition() {
         guard active, let recognizer else { return }
-        let token = generation
+        rotationTask?.cancel()
+        recognitionGeneration += 1
+        let token = recognitionGeneration
+        audioRequest.set(nil)
+        request?.endAudio(); task?.cancel()
         let next = SFSpeechAudioBufferRecognitionRequest()
         next.requiresOnDeviceRecognition = true
         next.shouldReportPartialResults = true
+        next.taskHint = .dictation
+        next.contextualStrings = context
         request = next
         audioRequest.set(next)
+        onState?("正在听，请按稿朗读")
         task = recognizer.recognitionTask(with: next) { [weak self] result, error in
             Task { @MainActor [weak self] in
-                guard let self, self.active, self.generation == token else { return }
-                if let result { self.onTranscript?(result.bestTranscription.formattedString) }
+                guard let self, self.active, self.recognitionGeneration == token else { return }
+                if let result, !result.bestTranscription.formattedString.isEmpty {
+                    self.retryCount = 0
+                    self.onTranscript?(result.bestTranscription.formattedString)
+                }
                 if result?.isFinal == true {
-                    self.request?.endAudio(); self.task?.cancel(); self.task = nil
-                    self.generation += 1
                     self.armRecognition()
                 } else if let error {
-                    self.stop(); self.onFailure?("语音识别已暂停：\(error.localizedDescription)")
+                    self.recoverRecognition(error)
                 }
             }
+        }
+        // Roll over long live requests while retaining the camera's microphone
+        // session. A completed or restarted request never stops the movie writer.
+        rotationTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(45)) } catch { return }
+            guard let self, self.active, self.recognitionGeneration == token else { return }
+            self.armRecognition()
+        }
+    }
+
+    private func recoverRecognition(_ error: Error) {
+        guard active else { return }
+        recognitionGeneration += 1
+        rotationTask?.cancel()
+        audioRequest.set(nil); request?.endAudio(); task?.cancel(); task = nil
+        guard retryCount < 3 else {
+            stop(); onFailure?("识别暂时不可用，可点“重新跟读”恢复：\(error.localizedDescription)"); return
+        }
+        retryCount += 1
+        onState?("识别正在恢复，提词保持当前位置")
+        restartTask?.cancel()
+        restartTask = Task { [weak self] in
+            do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
+            guard let self, self.active else { return }
+            self.armRecognition()
         }
     }
 
     func stop() {
         generation += 1; active = false
+        recognitionGeneration += 1
+        restartTask?.cancel(); restartTask = nil
+        rotationTask?.cancel(); rotationTask = nil
         if engine.isRunning { engine.stop() }
         if installedTap { engine.inputNode.removeTap(onBus: 0); installedTap = false }
         audioRequest.set(nil)

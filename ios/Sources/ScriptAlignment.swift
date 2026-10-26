@@ -79,8 +79,9 @@ struct AlignmentMatch {
     let score: Double
 }
 
-/// Aligns recent recognized Chinese characters against the known script.
-/// ASR revisions are treated as replacement hypotheses, never appended blindly.
+/// Aligns the latest ASR hypothesis with the script in O(heard × window) work.
+/// A free script prefix allows matching within the window without running a
+/// separate edit-distance allocation for every possible substring.
 struct ScriptAligner {
     let script: ScriptUnits
 
@@ -89,40 +90,61 @@ struct ScriptAligner {
         guard spoken.count >= 3, !script.characters.isEmpty else {
             return AlignmentMatch(cursor: cursor, matched: false, score: 0)
         }
-        let text = script.characters
-        let lower = max(0, cursor - 70)
-        let upper = min(text.count, cursor + 220)
+        let position = min(max(0, cursor), script.characters.count)
         var best = AlignmentMatch(cursor: cursor, matched: false, score: 0)
-        for requested in [18, 12, 8, 5] {
+        var tested = Set<Int>()
+        for requested in [24, 16, 10, 6, 4] {
             let size = min(requested, spoken.count)
-            if size < 3 { continue }
-            let recent = Array(spoken.suffix(size))
-            for end in max(lower + 1, size / 2)...max(lower + 1, upper) {
-                for length in max(3, size - 2)...(size + 2) {
-                    let start = end - length
-                    if start < lower || end > upper { continue }
-                    let distance = Self.editDistance(recent, Array(text[start..<end]))
-                    let similarity = 1 - Double(distance) / Double(max(size, length))
-                    let movement = end - cursor
-                    if movement < -8 && size < 6 { continue }
-                    if movement > 60 && size < 8 { continue }
-                    let score = similarity - Double(abs(movement)) * 0.0007 + Double(size) * 0.001
-                    if score > best.score && similarity >= 0.72 {
-                        best = AlignmentMatch(cursor: end, matched: true, score: score)
-                    }
-                }
-            }
+            guard tested.insert(size).inserted else { continue }
+            let match = search(Array(spoken.suffix(size)), lower: max(0, position - 70),
+                               upper: min(script.characters.count, position + 220), cursor: position)
+            if match.score > best.score { best = match }
+        }
+        if !best.matched && spoken.count >= 12 {
+            // Reacquire after the reader skips a paragraph. Long, near-exact
+            // evidence is required so an unrelated short phrase cannot jump.
+            best = search(Array(spoken.suffix(24)), lower: 0, upper: script.characters.count,
+                          cursor: position, reacquiring: true)
         }
         return best
     }
 
-    private static func editDistance(_ a: [Character], _ b: [Character]) -> Int {
-        var row = Array(0...b.count)
-        for i in a.indices {
-            var next = [i + 1] + Array(repeating: 0, count: b.count)
-            for j in b.indices { next[j + 1] = min(next[j] + 1, min(row[j + 1] + 1, row[j] + (a[i] == b[j] ? 0 : 1))) }
-            row = next
+    private func search(_ spoken: [Character], lower: Int, upper: Int, cursor: Int,
+                        reacquiring: Bool = false) -> AlignmentMatch {
+        let text = script.characters
+        let count = upper - lower
+        guard count > 0 else { return AlignmentMatch(cursor: cursor, matched: false, score: 0) }
+        var previous = Array(repeating: 0, count: count + 1)
+        var starts = Array(0...count)
+        var current = Array(repeating: 0, count: count + 1)
+        var currentStarts = Array(repeating: 0, count: count + 1)
+        for (index, character) in spoken.enumerated() {
+            current[0] = index + 1; currentStarts[0] = 0
+            for column in 1...count {
+                var cost = previous[column - 1] + (character == text[lower + column - 1] ? 0 : 1)
+                var start = starts[column - 1]
+                if previous[column] + 1 < cost { cost = previous[column] + 1; start = starts[column] }
+                if current[column - 1] + 1 < cost { cost = current[column - 1] + 1; start = currentStarts[column - 1] }
+                current[column] = cost; currentStarts[column] = start
+            }
+            swap(&previous, &current); swap(&starts, &currentStarts)
         }
-        return row[b.count]
+        var best = AlignmentMatch(cursor: cursor, matched: false, score: 0)
+        for end in 1...count {
+            let length = end - starts[end]
+            guard length >= 3, abs(length - spoken.count) <= 4 else { continue }
+            let similarity = 1 - Double(previous[end]) / Double(max(length, spoken.count))
+            let movement = lower + end - cursor
+            let required = reacquiring ? 0.9 : (spoken.count < 6 ? 1.0 : (spoken.count < 10 ? 0.8 : 0.7))
+            guard similarity >= required else { continue }
+            if !reacquiring {
+                if spoken.count < 6 && (movement < -6 || movement > 24) { continue }
+                if spoken.count < 8 && (movement < -8 || movement > 60) { continue }
+            }
+            let penalty = Double(abs(movement)) * (reacquiring ? 0.00001 : 0.002)
+            let score = (similarity - 0.55) * sqrt(Double(spoken.count)) - min(0.4, penalty)
+            if score > best.score { best = AlignmentMatch(cursor: lower + end, matched: true, score: score) }
+        }
+        return best
     }
 }
