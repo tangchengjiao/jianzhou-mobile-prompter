@@ -2,7 +2,7 @@
 
 面向中文口播的个人提词工具：编辑稿件、全屏练习，并研究配合现有拍摄应用使用的悬浮提词。
 
-**[下载 Android APK](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/v0.1.0-preview.3)** · **[下载 iPhone 未签名 IPA](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/ios-v0.1.0-preview.2)** · [安装与验证说明](docs/06-原生实验版安装与验证.md)
+**[直接下载 Android APK](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/download/v0.1.0-preview.3/JianzhouPrompter-Android-0.1.0-preview.3.apk)** · **[直接下载 iPhone 未签名 IPA](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/download/ios-v0.1.0-preview.2/JianzhouPrompter-unsigned.ipa)** · [安装与验证说明](docs/06-原生实验版安装与验证.md)
 
 | 平台 | 当前阶段 | 使用条件 |
 | --- | --- | --- |
