@@ -2,12 +2,12 @@
 
 面向中文口播的个人提词工具：编辑稿件、全屏练习，并研究配合现有拍摄应用使用的悬浮提词。
 
-**[直接下载 Android APK](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/download/v0.1.0-preview.4/JianzhouPrompter-Android-0.1.0-preview.4.apk)** · **[直接下载 iPhone 未签名 IPA](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/download/ios-v0.1.0-preview.3/JianzhouPrompter-unsigned.ipa)** · [安装与验证说明](docs/06-原生实验版安装与验证.md)
+**[直接下载 Android APK](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/download/v0.1.0-preview.4/JianzhouPrompter-Android-0.1.0-preview.4.apk)** · **[直接下载 iPhone 未签名 IPA](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/download/ios-v0.1.0-preview.5/JianzhouPrompter-unsigned.ipa)** · [安装与验证说明](docs/06-原生实验版安装与验证.md)
 
 | 平台 | 当前阶段 | 使用条件 |
 | --- | --- | --- |
 | Android | Preview 4：单行悬浮栏、透明度滑条、稿件勾选批量导出；98 项测试通过，真实录像待验收 | Android 10+、arm64；约 90 MB，内含离线语音模型 |
-| iPhone / iPad | 构建 3 已在本人 iPhone 签名安装并打开；新增 App 内拍摄跟读正在验证，画中画保留匀速 | iOS 17+；iPhone 13 / iOS 27.0.1 安装方法已沉淀，不再重复试错 |
+| iPhone / iPad | 构建 5 已覆盖安装：按视觉行跟读、识别恢复、录后自动预览、取景/成片镜像独立设置；13 项单元测试及 3 项操作回归通过，真实跟读效果待复测 | iOS 17+；iPhone 13 / iOS 27.0.1 安装方法已沉淀 |
 | 交互原型 | 可在电脑预览 iPhone / Pixel 操作流程 | 浏览器原型不具备原生跨 App 悬浮能力 |
 
 先做好本人拍摄时的阅读体验：无需账户与会员，稿件保存在本机；原生悬浮能力和录音共享按手机及拍摄应用实际验证，不承诺“任何 App 都能语音跟随”。
@@ -19,6 +19,7 @@
 - [开发与真机验证计划](docs/03-开发与真机验证计划.md)：先验证核心用法，再完成双端；安装方式和验收标准。
 - [原生实验版安装与验证](docs/06-原生实验版安装与验证.md)：安装、实际测试范围和下一步。
 - [iPhone 真机试拍步骤](docs/09-iPhone真机试拍.md)：安装后的稿件、语音练习和真实录像检查。
+- [iPhone 跟拍改进](docs/11-iOS跟拍改进.md)：跟读停滞原因、自动预览、取景与成片镜像，以及本轮验证范围。
 - [安卓本次更新](docs/08-安卓试用反馈与更新.md)：悬浮窗宽高与位置、稿件保存/导出，以及与开拍同时收音的无障碍设置。
 - [iOS 原生工程](ios/)：SwiftUI / AVKit / Speech，与构建说明。
 - [Android 原生工程](android/)：基于 Suflyor 改编的中文离线实验版。
