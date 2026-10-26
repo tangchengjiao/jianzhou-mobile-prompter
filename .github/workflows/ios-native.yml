@@ -36,10 +36,15 @@ jobs:
           devices = [d for runtime, ds in data['devices'].items() if 'iOS' in runtime for d in ds if 'iPhone' in d['name'] and d.get('isAvailable')]
           if not devices:
               raise SystemExit('No available iPhone simulator')
-          print(devices[0]['udid'])
+          selected = next((d for d in devices if d['name'] == 'iPhone 16'), devices[0])
+          print(selected['udid'])
           PY
           )
           xcodebuild -project JianzhouPrompter.xcodeproj -scheme JianzhouPrompter -destination "platform=iOS Simulator,id=$device_id" -derivedDataPath build/Simulator CODE_SIGNING_ALLOWED=NO test | tee build/tests.log
+          xcrun simctl install "$device_id" build/Simulator/Build/Products/Debug-iphonesimulator/JianzhouPrompter.app
+          xcrun simctl launch "$device_id" com.jianzhou.prompter
+          sleep 2
+          xcrun simctl io "$device_id" screenshot build/ios-home.png
       - name: Package unsigned IPA
         working-directory: ios
         run: |
@@ -55,5 +60,6 @@ jobs:
           path: |
             ios/build/*.ipa
             ios/build/*.log
+            ios/build/*.png
           retention-days: 3
           if-no-files-found: warn
