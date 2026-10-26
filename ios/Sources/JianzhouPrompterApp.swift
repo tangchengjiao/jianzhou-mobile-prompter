@@ -37,11 +37,23 @@ struct PromptHome: View {
     @State private var settings = false
     @State private var importing = false
     @State private var exporting = false
+    @State private var exportAfterSettings = false
+    @State private var exportDocument = PromptTextFile(text: "")
+    @State private var exportFilename = "口播稿.txt"
     @State private var practice = false
     @State private var route: Route?
     @FocusState private var field: Field?
     enum Field: Hashable { case title, body }
     enum Route: Hashable { case prepare, read }
+
+    private func beginExport() {
+        field = nil
+        model.pause()
+        let snapshot = PromptExport(script: model.selected)
+        exportDocument = PromptTextFile(text: snapshot.text)
+        exportFilename = snapshot.filename
+        exporting = true
+    }
 
     var body: some View {
         NavigationStack {
@@ -67,6 +79,12 @@ struct PromptHome: View {
                             Button { model.pause(); route = .read } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }
                                 .accessibilityLabel("全屏查看稿件").disabled(!model.hasText)
                         }
+                        HStack {
+                            Label("已保存到本机", systemImage: "checkmark.circle").font(.caption2).foregroundStyle(.secondary)
+                            Spacer()
+                            Button("保存副本") { field = nil; model.saveCopy() }
+                            Button("导出 TXT") { beginExport() }.disabled(model.selected.text.isEmpty)
+                        }.font(.caption)
                     }
                     .padding(20).background(.white, in: RoundedRectangle(cornerRadius: 20))
                     .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.gray.opacity(0.14)))
@@ -104,7 +122,9 @@ struct PromptHome: View {
                     ForEach(model.scripts) { script in Button { model.select(script); library = false } label: { Text(script.title) } }
                 }.navigationTitle("我的稿件").toolbar { Button("完成") { library = false } } }
             }
-            .sheet(isPresented: $settings) { PromptSettings(export: { settings = false; exporting = true }) }
+            .sheet(isPresented: $settings, onDismiss: {
+                if exportAfterSettings { exportAfterSettings = false; beginExport() }
+            }) { PromptSettings(export: { exportAfterSettings = true; settings = false }) }
             .fileImporter(isPresented: $importing, allowedContentTypes: [.plainText, UTType(filenameExtension: "md") ?? .plainText]) { result in
                 do {
                     let url = try result.get(); let access = url.startAccessingSecurityScopedResource()
@@ -114,7 +134,7 @@ struct PromptHome: View {
                     model.create(title: url.deletingPathExtension().lastPathComponent, text: text)
                 } catch { model.message = "无法读取这份稿件，请用 UTF-8 TXT 或直接粘贴文字。" }
             }
-            .fileExporter(isPresented: $exporting, document: PromptTextFile(text: model.selected.title + "\n\n" + model.selected.text), contentType: .plainText, defaultFilename: model.selected.title) { result in
+            .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .plainText, defaultFilename: exportFilename) { result in
                 if case .failure(let error) = result { model.message = error.localizedDescription }
             }
         }

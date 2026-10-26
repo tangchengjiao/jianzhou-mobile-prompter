@@ -39,4 +39,21 @@ final class PrompterFlowTests: XCTestCase {
         let paused = app.staticTexts["已暂停 · 点句子定位"]
         XCTAssertTrue(paused.exists)
     }
+
+    func testSaveCopyShowsEditedWordingAndExportOpensFiles() {
+        let app = XCUIApplication()
+        app.launch()
+        let body = app.textViews["稿件正文"]
+        XCTAssertTrue(body.waitForExistence(timeout: 15))
+        let wording = body.value as? String ?? ""
+        app.buttons["保存副本"].tap()
+        XCTAssertTrue(app.textFields["稿件标题"].waitForExistence(timeout: 5))
+        XCTAssertTrue((app.textFields["稿件标题"].value as? String ?? "").contains(" · "))
+        XCTAssertEqual(app.textViews["稿件正文"].value as? String ?? "", wording)
+        app.buttons["导出 TXT"].tap()
+        let cancel = app.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "取消"])).firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 10))
+        cancel.tap()
+        XCTAssertTrue(app.buttons["导出 TXT"].waitForExistence(timeout: 5))
+    }
 }

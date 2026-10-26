@@ -7,10 +7,26 @@ struct PromptScript: Identifiable, Codable {
     var text: String
 }
 
+/** A fixed copy of the wording at the moment the user taps Export. */
+struct PromptExport {
+    let filename: String
+    let text: String
+
+    init(script: PromptScript, date: Date = Date()) {
+        let title = script.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let visibleTitle = title.isEmpty ? "未命名口播" : title
+        let safeTitle = visibleTitle.replacingOccurrences(of: "[\\\\/:*?\"<>|\\r\\n]", with: " ", options: .regularExpression)
+        let time = DateFormatter()
+        time.dateFormat = "yyyyMMdd-HHmmss"
+        filename = "\(safeTitle)-\(time.string(from: date)).txt"
+        text = visibleTitle + "\n\n" + script.text
+    }
+}
+
 @MainActor
 final class PrompterModel: ObservableObject {
     @Published var scripts: [PromptScript] { didSet { save() } }
-    @Published var selectedID: UUID
+    @Published var selectedID: UUID { didSet { defaults.set(selectedID.uuidString, forKey: selectedKey) } }
     @Published var fontSize: Double = 32 { didSet { saveSettings() } }
     @Published var speed: Double = 180 { didSet { saveSettings() } }
     @Published var mirror = false { didSet { saveSettings() } }
@@ -28,13 +44,17 @@ final class PrompterModel: ObservableObject {
     private var cachedSentences: [(range: NSRange, text: String)] = []
     private var lastTime: TimeInterval = 0
     let speech = SpeechFollower()
+    private let defaults: UserDefaults
     private let storeKey = "jianzhou.prompter.scripts.v1"
+    private let selectedKey = "jianzhou.prompter.selected-script.v1"
 
-    init() {
-        let restored = UserDefaults.standard.data(forKey: "jianzhou.prompter.scripts.v1").flatMap { try? JSONDecoder().decode([PromptScript].self, from: $0) }
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        let restored = defaults.data(forKey: "jianzhou.prompter.scripts.v1").flatMap { try? JSONDecoder().decode([PromptScript].self, from: $0) }
         let initial = restored?.isEmpty == false ? restored! : [PromptScript(title: "为什么我要自己做提词器", text: "我拍视频的时候，最怕的不是忘词。\n\n而是刚找到状态，提词却没跟上。\n\n所以这一次，我想做一个真正顺手的工具。")]
-        scripts = initial; selectedID = initial[0].id
-        if let saved = UserDefaults.standard.dictionary(forKey: "jianzhou.prompter.settings.v1") {
+        let previousID = defaults.string(forKey: "jianzhou.prompter.selected-script.v1").flatMap(UUID.init(uuidString:))
+        scripts = initial; selectedID = initial.first(where: { $0.id == previousID })?.id ?? initial[0].id
+        if let saved = defaults.dictionary(forKey: "jianzhou.prompter.settings.v1") {
             fontSize = saved["font"] as? Double ?? 32; speed = saved["speed"] as? Double ?? 180
             mirror = saved["mirror"] as? Bool ?? false; countdown = saved["countdown"] as? Int ?? 3
         }
@@ -81,6 +101,12 @@ final class PrompterModel: ObservableObject {
     func select(_ script: PromptScript) { pause(); selectedID = script.id; cursor = 0 }
     func create(title: String = "未命名口播", text: String = "") {
         let next = PromptScript(title: title, text: text); scripts.insert(next, at: 0); select(next)
+    }
+    func saveCopy(date: Date = Date()) {
+        let original = selected
+        let label = DateFormatter()
+        label.dateFormat = "MM-dd HH:mm"
+        create(title: original.title + " · " + label.string(from: date), text: original.text)
     }
     func seek(sourceOffset: Int) {
         pause()
@@ -140,9 +166,9 @@ final class PrompterModel: ObservableObject {
         if progress >= 1 { pause() }
     }
     private func save() {
-        if let data = try? JSONEncoder().encode(scripts) { UserDefaults.standard.set(data, forKey: storeKey) }
+        if let data = try? JSONEncoder().encode(scripts) { defaults.set(data, forKey: storeKey) }
     }
     private func saveSettings() {
-        UserDefaults.standard.set(["font": fontSize, "speed": speed, "mirror": mirror, "countdown": countdown], forKey: "jianzhou.prompter.settings.v1")
+        defaults.set(["font": fontSize, "speed": speed, "mirror": mirror, "countdown": countdown], forKey: "jianzhou.prompter.settings.v1")
     }
 }

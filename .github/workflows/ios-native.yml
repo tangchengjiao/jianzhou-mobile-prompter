@@ -76,8 +76,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=ios-v0.1.0-preview.1
+          tag=ios-v0.1.0-preview.2
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title '见舟提词 iOS 原生实验版' --notes '未签名 IPA：需本人自用签名才能安装。构建、模拟器测试及界面截图来自此运行；实际 iPhone 录像兼容性与语音能力仍需真机验证。'
+            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title '见舟提词 iOS：稿件副本与 TXT 导出' --notes '首页可保存稿件副本、导出 UTF-8 TXT，并恢复上次打开的稿件。未签名 IPA 需本人自用签名安装。构建与 iPhone 13 / iOS 27 模拟器测试来自本次运行；真实录像兼容性仍待本人真机验证。'
           fi
           gh release upload "$tag" build/JianzhouPrompter-unsigned.ipa build/ios-home.png --clobber
