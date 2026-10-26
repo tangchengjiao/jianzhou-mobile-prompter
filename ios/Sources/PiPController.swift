@@ -21,6 +21,7 @@ final class PiPController: NSObject, ObservableObject {
     private var observation: NSKeyValueObservation?
     private var frameTimer: Timer?
     private var subscriptions = Set<AnyCancellable>()
+    private nonisolated let playback = PlaybackFlag()
     private var frameSize = CGSize(width: 720, height: 420)
     private let renderer = PromptFrameRenderer()
 
@@ -53,7 +54,8 @@ final class PiPController: NSObject, ObservableObject {
                 if possible && !self.isActive { self.status = "画中画可启动；录像兼容性仍需实测" }
             }
         }
-        model.$playing.sink { [weak self] _ in
+        model.$playing.sink { [weak self] playing in
+            self?.playback.set(playing)
             DispatchQueue.main.async { self?.controller?.invalidatePlaybackState() }
         }.store(in: &subscriptions)
         frameTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 15, repeats: true) { [weak self] _ in
@@ -98,41 +100,60 @@ final class PiPController: NSObject, ObservableObject {
 }
 
 extension PiPController: AVPictureInPictureControllerDelegate {
-    func pictureInPictureControllerDidStartPictureInPicture(_ controller: AVPictureInPictureController) {
-        isActive = true; pending = false; record("画中画已启动；请切到拍摄 App 开始录像测试")
-        model?.play()
+    nonisolated func pictureInPictureControllerDidStartPictureInPicture(_ controller: AVPictureInPictureController) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.isActive = true; self.pending = false; self.record("画中画已启动；请切到拍摄 App 开始录像测试")
+            self.model?.play()
+        }
     }
-    func pictureInPictureControllerDidStopPictureInPicture(_ controller: AVPictureInPictureController) {
-        isActive = false; pending = false; model?.pause(); record("画中画已停止")
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    nonisolated func pictureInPictureControllerDidStopPictureInPicture(_ controller: AVPictureInPictureController) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.isActive = false; self.pending = false; self.model?.pause(); self.record("画中画已停止")
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
-    func pictureInPictureController(_ controller: AVPictureInPictureController, failedToStartPictureInPictureWithError error: Error) {
-        pending = false; isActive = false; record("画中画启动失败：\(error.localizedDescription)")
+    nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, failedToStartPictureInPictureWithError error: Error) {
+        let reason = error.localizedDescription
+        Task { @MainActor [weak self] in
+            self?.pending = false; self?.isActive = false; self?.record("画中画启动失败：\(reason)")
+        }
     }
-    func pictureInPictureController(_ controller: AVPictureInPictureController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
+    nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
         completionHandler(true)
     }
 }
 
 extension PiPController: AVPictureInPictureSampleBufferPlaybackDelegate {
-    func pictureInPictureController(_ controller: AVPictureInPictureController, setPlaying playing: Bool) {
-        guard let model else { return }
-        if playing { model.resumeImmediately() } else { model.pause() }
-        controller.invalidatePlaybackState()
+    nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, setPlaying playing: Bool) {
+        Task { @MainActor [weak self] in
+            guard let self, let model = self.model else { return }
+            if playing { model.resumeImmediately() } else { model.pause() }
+            self.controller?.invalidatePlaybackState()
+        }
     }
-    func pictureInPictureControllerTimeRangeForPlayback(_ controller: AVPictureInPictureController) -> CMTimeRange {
+    nonisolated func pictureInPictureControllerTimeRangeForPlayback(_ controller: AVPictureInPictureController) -> CMTimeRange {
         CMTimeRange(start: .negativeInfinity, duration: .positiveInfinity)
     }
-    func pictureInPictureControllerIsPlaybackPaused(_ controller: AVPictureInPictureController) -> Bool { model?.playing != true }
-    func pictureInPictureController(_ controller: AVPictureInPictureController, didTransitionToRenderSize newRenderSize: CMVideoDimensions) {
+    nonisolated func pictureInPictureControllerIsPlaybackPaused(_ controller: AVPictureInPictureController) -> Bool { !playback.get() }
+    nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, didTransitionToRenderSize newRenderSize: CMVideoDimensions) {
         guard newRenderSize.width > 0, newRenderSize.height > 0 else { return }
         let scale = 720.0 / Double(newRenderSize.width)
-        frameSize = CGSize(width: 720, height: min(1200, max(240, Double(newRenderSize.height) * scale)))
-        render()
+        let size = CGSize(width: 720, height: min(1200, max(240, Double(newRenderSize.height) * scale)))
+        Task { @MainActor [weak self] in self?.frameSize = size; self?.render() }
     }
-    func pictureInPictureController(_ controller: AVPictureInPictureController, skipByInterval skipInterval: CMTime, completion completionHandler: @escaping () -> Void) {
-        model?.skip(skipInterval.seconds > 0 ? 1 : -1); render(); completionHandler()
+    nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, skipByInterval skipInterval: CMTime, completion completionHandler: @escaping () -> Void) {
+        let direction = skipInterval.seconds > 0 ? 1 : -1
+        Task { @MainActor [weak self] in self?.model?.skip(direction); self?.render(); completionHandler() }
     }
+}
+
+private final class PlaybackFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+    func set(_ value: Bool) { lock.lock(); self.value = value; lock.unlock() }
+    func get() -> Bool { lock.lock(); defer { lock.unlock() }; return value }
 }
 
 struct PiPPreview: UIViewRepresentable {
@@ -199,10 +220,12 @@ private final class PromptFrameRenderer {
         let line = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: &lineRange)
         let target = max(0, line.minY - font * 0.5)
         offset += (target - offset) * 0.32
-        layout.removeTemporaryAttribute(.foregroundColor, forCharacterRange: NSRange(location: 0, length: storage.length))
-        if char > 0 { layout.addTemporaryAttribute(.foregroundColor, value: UIColor(white: 0.35, alpha: 1), forCharacterRange: NSRange(location: 0, length: char)) }
+        storage.beginEditing()
+        storage.addAttribute(.foregroundColor, value: UIColor(white: 0.68, alpha: 1), range: NSRange(location: 0, length: storage.length))
+        if char > 0 { storage.addAttribute(.foregroundColor, value: UIColor(white: 0.35, alpha: 1), range: NSRange(location: 0, length: char)) }
         let current = layout.characterRange(forGlyphRange: lineRange, actualGlyphRange: nil)
-        layout.addTemporaryAttribute(.foregroundColor, value: UIColor(red: 0.93, green: 0.9, blue: 1, alpha: 1), forCharacterRange: current)
+        storage.addAttribute(.foregroundColor, value: UIColor(red: 0.93, green: 0.9, blue: 1, alpha: 1), range: current)
+        storage.endEditing()
         UIGraphicsPushContext(cg)
         layout.drawGlyphs(forGlyphRange: NSRange(location: 0, length: layout.numberOfGlyphs), at: CGPoint(x: 32, y: 25 - offset))
         UIGraphicsPopContext()

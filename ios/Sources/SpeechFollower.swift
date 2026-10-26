@@ -38,7 +38,7 @@ final class SpeechFollower {
         guard authorization == .authorized else { onFailure?("请允许语音识别，或使用匀速提词。"); return false }
         guard generation == token, !Task.isCancelled else { return false }
         let microphone = await withCheckedContinuation { continuation in
-            AVAudioSession.sharedInstance().requestRecordPermission { continuation.resume(returning: $0) }
+            AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
         }
         guard generation == token, !Task.isCancelled else { return false }
         guard microphone else { onFailure?("请允许麦克风，或使用匀速提词。"); return false }
