@@ -12,7 +12,7 @@
 2. 用数据线连接 iPhone，解锁并信任这台电脑。按官方说明开启 Wi-Fi 同步，便于后续刷新。
 3. 在自己的电脑上，通过 AltServer 选择安装 AltStore 到这台 iPhone，并自行输入本人 Apple ID。账号密码不需要发送到聊天或写进项目。
 4. 按 iPhone 提示完成开发者模式或开发者信任设置。具体页面以手机显示为准。
-5. 从项目 Actions 下载构建 ZIP，解压最外层 ZIP，取出 `JianzhouPrompter-unsigned.ipa`。不要再解压 IPA 本身。
+5. 从 [iOS 实验版 Releases](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/ios-v0.1.0-preview.1)直接下载 `JianzhouPrompter-unsigned.ipa`，不要解压 IPA 本身。
 6. 将 IPA 放到 iPhone“文件”中，在 AltStore 的 My Apps 页用加号导入，等待自用签名与安装。
 7. 打开见舟提词。先用全屏匀速阅读；启用全屏语音练习时再允许麦克风和语音识别。最后尝试系统画中画，并分别在常用拍摄应用中实际录制。
 

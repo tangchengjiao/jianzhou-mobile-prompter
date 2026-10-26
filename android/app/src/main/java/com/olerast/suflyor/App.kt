@@ -117,6 +117,12 @@ class Settings(context: Context) {
         get() = prefs.getInt("overlayY2", 0)
         set(v) = prefs.edit().putInt("overlayY2", v).apply()
 
+    /** Each orientation remembers its own window proportions and position. */
+    fun overlayBounds(placement: String): String? = prefs.getString("overlayBounds.$placement", null)
+    fun saveOverlayBounds(placement: String, value: String) {
+        prefs.edit().putString("overlayBounds.$placement", value).apply()
+    }
+
     var currentScriptId: String?
         get() = prefs.getString("currentScriptId", null)
         set(v) = prefs.edit().putString("currentScriptId", v).apply()

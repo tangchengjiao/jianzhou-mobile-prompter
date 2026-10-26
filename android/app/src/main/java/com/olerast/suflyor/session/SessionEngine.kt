@@ -1,6 +1,10 @@
 package com.olerast.suflyor.session
 
 import android.content.Context
+import android.Manifest
+import android.content.pm.PackageManager
+import android.media.MediaRecorder
+import android.widget.Toast
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -63,7 +67,7 @@ class SessionEngine(private val app: App) : AudioCapture.Listener {
         val scroll: Scroll = Scroll.VOICE,
         /** Input is unavailable; voice mode holds its place instead of silently switching to timed scrolling. */
         val autoFallback: Boolean = false,
-        /** The microphone stopped for good this session: the timer moves the text; the chosen mode stays as it was. */
+        /** Microphone unavailable: voice and sound modes hold their position. */
         val micFailed: Boolean = false,
         val levelDb: Float = -120f,
         val silencedBySystem: Boolean? = null,
@@ -181,7 +185,7 @@ class SessionEngine(private val app: App) : AudioCapture.Listener {
         }
         val old = stale
         // Also load when a running session has no recognizer at all (an earlier load failed).
-        if (old != null || (asr == null && state.mode != Mode.IDLE && !state.starting)) {
+        if (old != null || (asr == null && state.mode != Mode.IDLE && state.scroll == Scroll.VOICE && !state.starting)) {
             swapRecognizer(old)
         } else {
             asr?.setBiasWords(m.biasWords())
@@ -191,14 +195,14 @@ class SessionEngine(private val app: App) : AudioCapture.Listener {
 
     /** Frees the model of the old language first (they are large), then loads the new one if a session needs it. */
     private fun swapRecognizer(old: AsrEngine?) {
-        val running = state.mode != Mode.IDLE
+        val running = state.mode != Mode.IDLE && state.scroll == Scroll.VOICE
         if (running) update { copy(loadingModel = true) }
         Thread({
             if (old != null) {
                 old.release()
                 DiagLog.i("Recognizer released: ${old.lang.code}")
             }
-            if (state.mode != Mode.IDLE) {
+            if (state.mode != Mode.IDLE && state.scroll == Scroll.VOICE) {
                 val error = ensureAsr()
                 update {
                     // A successful load clears an earlier load failure; a new failure replaces it.
@@ -287,7 +291,7 @@ class SessionEngine(private val app: App) : AudioCapture.Listener {
         update { copy(mode = mode, starting = true, error = null, paused = false, autoFallback = false, micFailed = false) }
         val token = ++sessionToken
         Thread({
-            val asrError = ensureAsr()
+            val asrError = if (state.scroll == Scroll.VOICE) ensureAsr() else null
             main.post { if (token == sessionToken && state.mode == mode && state.starting) continueStart(mode, asrError) }
         }, "asr-load").start()
     }
@@ -335,18 +339,20 @@ class SessionEngine(private val app: App) : AudioCapture.Listener {
     private fun continueStart(mode: Mode, asrError: SessionError?) {
         val s = app.settings
         resetStats()
-        val cap = AudioCapture(s.audioSource, s.sampleRate, this)
-        val err = cap.start()
-        if (err != null) {
-            DiagLog.e(err.toString())
-            update { copy(mode = Mode.IDLE, starting = false, listening = false, error = SessionError.Capture(err)) }
-            // The model may have loaded before the microphone refused: free it later like after a normal stop.
-            main.removeCallbacks(unloadIdle)
-            main.postDelayed(unloadIdle, UNLOAD_AFTER_MS)
-            return
+        if (state.scroll != Scroll.AUTO) {
+            val host = if (mode == Mode.OVERLAY) PrompterAccessibilityService.instance else null
+            // Concurrent camera capture requires the accessibility UID and VOICE_RECOGNITION source.
+            val source = if (mode == Mode.OVERLAY) MediaRecorder.AudioSource.VOICE_RECOGNITION else s.audioSource
+            val cap = AudioCapture(host ?: app, source, s.sampleRate, this)
+            val err = cap.start()
+            if (err != null) {
+                DiagLog.e(err.toString())
+                update { copy(starting = false, listening = true, micFailed = true, error = SessionError.Capture(err)) }
+            } else {
+                capture = cap
+                monitor = RecordingMonitor(app, { cap.audioSessionId }) { onRecordings(it) }.also { it.start() }
+            }
         }
-        capture = cap
-        monitor = RecordingMonitor(app, { cap.audioSessionId }) { onRecordings(it) }.also { it.start() }
         val a11y = PrompterAccessibilityService.instance != null
         DiagLog.i(
             "Start: ${if (mode == Mode.OVERLAY) "over other apps" else "in app"}, " +
@@ -354,10 +360,11 @@ class SessionEngine(private val app: App) : AudioCapture.Listener {
                 "accessibility ${if (a11y) "ON" else "off"}, " +
                 "recognizer: ${asr?.description ?: "none"}",
         )
-        update { copy(starting = false, listening = true, error = asrError) }
+        update { copy(starting = false, listening = true, error = error ?: asrError) }
         lastTick = SystemClock.elapsedRealtime()
         main.removeCallbacks(ticker)
         main.post(ticker)
+        if (state.scroll == Scroll.AUTO) startCountdown()
     }
 
     fun stop() {
@@ -415,6 +422,17 @@ class SessionEngine(private val app: App) : AudioCapture.Listener {
     }
 
     fun setScroll(scroll: Scroll) {
+        if (state.scroll == scroll) return
+        if (state.mode != Mode.IDLE && scroll != Scroll.AUTO) {
+            if (state.mode == Mode.OVERLAY && PrompterAccessibilityService.instance == null) {
+                Toast.makeText(app, R.string.start_problem_voice_a11y, Toast.LENGTH_LONG).show()
+                return
+            }
+            if (app.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(app, "请返回见舟提词，先授予麦克风权限。", Toast.LENGTH_LONG).show()
+                return
+            }
+        }
         autoCarry = 0.0
         update { copy(scroll = scroll) }
         DiagLog.i(
@@ -424,9 +442,27 @@ class SessionEngine(private val app: App) : AudioCapture.Listener {
                 Scroll.VOICE -> "Scroll: voice"
             },
         )
-        if (scroll == Scroll.AUTO) startCountdown() else {
-            countdownEndsAt = 0L
-            update { copy(countdown = 0) }
+        countdownEndsAt = 0L
+        update { copy(countdown = 0) }
+        if (state.mode != Mode.IDLE) {
+            val mode = state.mode
+            val token = ++sessionToken
+            capture?.stop(); capture = null
+            monitor?.stop(); monitor = null
+            synchronized(lock) {
+                epoch++
+                asr?.reset()
+                finalWords.clear()
+                partialWords = emptyList()
+            }
+            update { copy(starting = true, listening = false, error = null, micFailed = false,
+                silencedBySystem = null, digitalSilence = false, autoFallback = false, levelDb = -120f,
+                partial = "", lastFinal = "", recordings = emptyList()) }
+            if (mode == Mode.OVERLAY) SessionService.refresh(app)
+            Thread({
+                val error = if (scroll == Scroll.VOICE) ensureAsr() else null
+                main.post { if (token == sessionToken && state.mode == mode) continueStart(mode, error) }
+            }, "input-change").start()
         }
     }
 
@@ -439,6 +475,7 @@ class SessionEngine(private val app: App) : AudioCapture.Listener {
     // ---- audio thread -------------------------------------------------------------------------------------------
 
     override fun onAudio(samples: FloatArray, sampleRate: Int, rmsDb: Float, digitalSilence: Boolean) {
+        if (state.scroll == Scroll.AUTO) return
         val now = SystemClock.elapsedRealtime()
         statFrames++
         if (digitalSilence) statZeroFrames++
@@ -550,11 +587,11 @@ class SessionEngine(private val app: App) : AudioCapture.Listener {
         }
     }
 
-    /** The microphone stopped for good (AudioCapture already tried to reopen it): keep the text moving on a timer. */
+    /** The microphone stopped: voice mode stays in place until input returns or the user chooses timed mode. */
     override fun onCaptureError(source: AudioCapture, error: CaptureError) {
         // A capture from an earlier session may report late, after a new one has started.
         if (source !== capture) return
-        DiagLog.e("$error; the text moves on the timer")
+        DiagLog.e("$error; voice following holds its position")
         update { copy(error = SessionError.Capture(error), micFailed = true, levelDb = -120f) }
     }
 

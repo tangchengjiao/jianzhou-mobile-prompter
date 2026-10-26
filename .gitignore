@@ -14,6 +14,7 @@ ios/*.xcworkspace/
 ios/**/xcuserdata/
 *.ipa
 *.apk
+releases/
 docs/04-工作状态.md
 **/validation/
 .DS_Store

@@ -142,7 +142,7 @@ private fun countSpokenWords(text: String, speechLang: String?): Int {
 }
 
 /** Turns a document back into the editor's Markdown-light text. */
-fun ScriptDocument.toEditableText(): String = paragraphs.joinToString("\n\n") { p ->
+fun ScriptDocument.toEditableText(): String = sourceText ?: paragraphs.joinToString("\n\n") { p ->
     when (p.kind) {
         Paragraph.Kind.HEADING -> "# ${p.text}"
         Paragraph.Kind.BODY -> buildString {

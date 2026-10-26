@@ -70,7 +70,8 @@ class QuickStartActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState != null) return
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+        if (App.instance.engine.state.scroll == SessionEngine.Scroll.AUTO ||
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             start()
         } else {
             micPermission.launch(Manifest.permission.RECORD_AUDIO)

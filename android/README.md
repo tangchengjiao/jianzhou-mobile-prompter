@@ -1,6 +1,8 @@
 # 见舟提词 · Android 原生版（开发中）
 
-基于 [Suflyor](https://github.com/olerast67/voice-teleprompter-android) 的 Android 原生实现改编，保留 GPL-3.0 许可证和作者来源。当前正在加入中文语音、中文字符定位与见舟的交互风格。
+基于 [Suflyor](https://github.com/olerast67/voice-teleprompter-android) 的 Android 原生实现改编，保留 GPL-3.0 许可证和作者来源。现有中文离线语音、中文字符定位、稿件编辑与文件导出。
+
+`0.1.0-preview.3` 增加悬浮窗宽高缩放与位置记忆、首页 TXT 导出和保存副本。语音悬浮必须先开启系统无障碍服务；匀速模式无需麦克风。详见[本次更新与操作说明](../docs/08-安卓试用反馈与更新.md)。
 
 应用标识为 `com.jianzhou.prompter`，Debug 版另加 `.debug`；不会覆盖上游 Suflyor。内部代码包名保留以便跟进上游实现。
 

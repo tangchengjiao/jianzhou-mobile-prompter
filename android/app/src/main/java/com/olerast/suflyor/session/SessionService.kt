@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.IBinder
 import com.olerast.suflyor.MainActivity
 import com.olerast.suflyor.R
+import com.olerast.suflyor.App
 import com.olerast.suflyor.diag.DiagLog
 import com.olerast.suflyor.overlay.OverlayHost
 
@@ -47,7 +48,11 @@ class SessionService : Service() {
             .build()
         try {
             if (Build.VERSION.SDK_INT >= 30) {
-                startForeground(ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+                val timed = App.instance.engine.state.scroll == SessionEngine.Scroll.AUTO
+                val type = if (!timed) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                    else if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                    else 0
+                startForeground(ID, notification, type)
             } else {
                 startForeground(ID, notification)
             }
@@ -93,6 +98,10 @@ class SessionService : Service() {
             if (!foreground) return
             foreground = false
             context.stopService(Intent(context, SessionService::class.java))
+        }
+
+        fun refresh(context: Context) {
+            if (foreground) context.startService(Intent(context, SessionService::class.java))
         }
     }
 }

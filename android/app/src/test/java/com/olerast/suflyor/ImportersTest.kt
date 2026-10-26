@@ -318,10 +318,15 @@ class ImportersTest {
     }
 
     @Test
-    fun builtInSampleInBothLanguages() {
+    fun builtInChineseSampleAndLegacyRussianSample() {
+        val chinese = MarkdownImporter.parse(resourceString("values", "sample_script"), resourceString("values", "sample_title"))
+        assertEquals(SpeechLang.ZH, SpeechLang.detect(chinese))
+        assertEquals(4, chinese.paragraphs.size)
+        assertTrue(chinese.paragraphs.all { it.kind == Paragraph.Kind.BODY && it.text.isNotBlank() })
+        assertTrue(chinese.paragraphs.first().text.contains("我拍视频"))
         for ((dir, lang, bold) in listOf(
-            Triple("values", SpeechLang.EN, "Read a couple of lines"),
-            Triple("values-ru", SpeechLang.RU, "Прочитай пару строк"),
+            // The fork ships only the Chinese/English model; unsupported scripts use the Chinese default.
+            Triple("values-ru", SpeechLang.ZH, "Прочитай пару строк"),
         )) {
             val doc = MarkdownImporter.parse(resourceString(dir, "sample_script"), resourceString(dir, "sample_title"))
             assertEquals(Paragraph.Kind.HEADING, doc.paragraphs[0].kind)
@@ -330,7 +335,7 @@ class ImportersTest {
             assertTrue(doc.paragraphs[3].text.startsWith("["))
             assertEquals(lang, SpeechLang.detect(doc))
         }
-        // Lint isn't part of the build: every string of this area needs its Russian twin.
+        // Import resource keys remain compatible with the upstream translation.
         assertEquals(resourceNames("values"), resourceNames("values-ru"))
     }
 

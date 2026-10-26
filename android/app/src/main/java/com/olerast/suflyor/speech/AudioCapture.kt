@@ -54,6 +54,7 @@ sealed interface CaptureError {
  * as privacy-sensitive: such a capture would take the microphone away from the camera app that is recording.
  */
 class AudioCapture(
+    private val context: Context,
     private val source: Int,
     private val sampleRate: Int,
     private val listener: Listener,
@@ -101,6 +102,7 @@ class AudioCapture(
             .setAudioFormat(format)
             .setBufferSizeInBytes(maxOf(minBuf * 4, sampleRate * 2))
         if (Build.VERSION.SDK_INT >= 30) builder.setPrivacySensitive(false)
+        if (Build.VERSION.SDK_INT >= 31) builder.setContext(context)
         val rec = try {
             builder.build()
         } catch (e: Exception) {

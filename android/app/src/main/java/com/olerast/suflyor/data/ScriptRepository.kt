@@ -116,14 +116,15 @@ class ScriptRepository(context: Context, private val settings: Settings) {
         return add(doc.copy(title = copyTitle(doc.title)))
     }
 
-    fun update(id: String, doc: ScriptDocument) {
+    fun update(id: String, doc: ScriptDocument): Boolean {
         val created = runCatching { JSONObject(readText(file(id))).optLong("createdAt") }.getOrDefault(System.currentTimeMillis())
-        write(id, doc, created)
+        if (!write(id, doc, created)) return false
         items = loadAllMeta()
         if (id == currentId) {
             document = doc
             relayout()
         }
+        return true
     }
 
     fun delete(id: String) {
@@ -161,6 +162,7 @@ class ScriptRepository(context: Context, private val settings: Settings) {
             put("id", id)
             put("title", doc.title)
             put("format", doc.format)
+            doc.sourceText?.let { put("sourceText", it) }
             put("createdAt", createdAt)
             put("updatedAt", updatedAt)
             put("words", words)
@@ -193,7 +195,7 @@ class ScriptRepository(context: Context, private val settings: Settings) {
         val atomic = AtomicFile(f)
         val out = atomic.startWrite()
         try {
-            out.write(text.toByteArray())
+            out.write(text.toByteArray(Charsets.UTF_8))
             atomic.finishWrite(out)
         } catch (e: Exception) {
             atomic.failWrite(out)
@@ -201,7 +203,7 @@ class ScriptRepository(context: Context, private val settings: Settings) {
         }
     }
 
-    private fun readText(f: File): String = String(AtomicFile(f).readFully())
+    private fun readText(f: File): String = String(AtomicFile(f).readFully(), Charsets.UTF_8)
 
     private fun read(id: String): ScriptDocument? = runCatching { parse(JSONObject(readText(file(id)))) }.getOrNull()
 
@@ -226,6 +228,7 @@ class ScriptRepository(context: Context, private val settings: Settings) {
             paragraphs,
             warnings,
             speechLang = o.optString(KEY_SPEECH_LANG).takeIf { SpeechLang.fromCode(it) != null },
+            sourceText = if (o.has("sourceText")) o.getString("sourceText") else null,
         )
     }
 

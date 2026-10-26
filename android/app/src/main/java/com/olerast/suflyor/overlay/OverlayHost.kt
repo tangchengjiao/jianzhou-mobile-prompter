@@ -24,6 +24,7 @@ import com.olerast.suflyor.session.SessionService
 enum class StartProblem(@StringRes val message: Int) {
     NO_HOST(R.string.start_problem_no_host),
     WINDOW_FAILED(R.string.start_problem_window_failed),
+    VOICE_NEEDS_ACCESSIBILITY(R.string.start_problem_voice_a11y),
 }
 
 /** Starts and stops the "over other apps" session: foreground service + engine + floating window. */
@@ -45,6 +46,9 @@ object OverlayHost {
             return StartProblem.NO_HOST
         }
         val app = App.instance
+        if (app.engine.state.scroll != SessionEngine.Scroll.AUTO && a11y == null) {
+            return StartProblem.VOICE_NEEDS_ACCESSIBILITY
+        }
         val appContext = context.applicationContext
         // Already running (second tap, tile + app): keep the service, microphone and window; just make sure the
         // window is there. Restarting would publish a transient IDLE and tear the foreground service down.

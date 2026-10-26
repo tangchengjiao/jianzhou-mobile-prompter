@@ -10,6 +10,8 @@ data class ScriptDocument(
     val warnings: List<ImportWarning> = emptyList(),
     /** Speech language chosen for this script (a SpeechLang code); null follows the default in Settings. */
     val speechLang: String? = null,
+    /** The edited wording and line breaks, kept separately from the layout used for prompting. */
+    val sourceText: String? = null,
 ) {
     val isEmpty: Boolean get() = paragraphs.all { it.text.isBlank() }
 

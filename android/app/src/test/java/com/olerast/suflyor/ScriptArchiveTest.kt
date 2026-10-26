@@ -5,6 +5,7 @@ import com.olerast.suflyor.doc.ImportException
 import com.olerast.suflyor.doc.MarkdownImporter
 import com.olerast.suflyor.doc.ScriptArchive
 import com.olerast.suflyor.doc.ScriptArchive.Entry
+import com.olerast.suflyor.ui.toEditableText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,6 +15,17 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 class ScriptArchiveTest {
+    @Test
+    fun editedChineseCorpusKeepsOriginalLineBreaksAndMarkdownAfterBackup() {
+        val edited = "开场：  我想讲一句话。\n下一句，先停一停。\n\n**这是我改过的重点。**\n[停顿两秒]"
+        val doc = MarkdownImporter.parse(edited, "我的口播 · 定稿").copy(sourceText = edited, speechLang = "zh")
+        val entry = Entry(doc.title, doc.toEditableText(), doc.speechLang)
+        val restored = ScriptArchive.read(archive(listOf(entry))).entries.single()
+        assertEquals("我的口播 · 定稿", restored.title)
+        assertEquals(edited, restored.text)
+        assertEquals("zh", restored.speechLang)
+    }
+
     private fun archive(scripts: List<Entry>): ByteArray =
         ByteArrayOutputStream().also { ScriptArchive.write(scripts, it) }.toByteArray()
 

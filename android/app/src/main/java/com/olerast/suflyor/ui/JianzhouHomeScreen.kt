@@ -21,6 +21,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.olerast.suflyor.App
 import com.olerast.suflyor.R
 import com.olerast.suflyor.doc.MarkdownImporter
@@ -38,6 +41,8 @@ fun JianzhouHomeScreen(
     onLibrary: () -> Unit,
     onImport: () -> Unit,
     onSettings: () -> Unit,
+    onExport: () -> Unit,
+    onSaveCopy: () -> Unit,
 ) {
     val app = App.instance
     val id = app.scripts.currentId
@@ -48,15 +53,35 @@ fun JianzhouHomeScreen(
     val focus = LocalFocusManager.current
     val units = remember(body.value) { ChineseNorm.words(body.value).size }
     val seconds = ceil(units * 60.0 / app.settings.autoScrollWpm).toInt()
+    var saveStatus by remember(id) { mutableStateOf("已保存到本机") }
 
     fun save() {
-        if (title.value == document.title && body.value == document.toEditableText()) return
+        val stored = id?.let { app.scripts.documentOf(it) } ?: document
+        if (title.value == stored.title && body.value == stored.toEditableText()) {
+            saveStatus = "已保存到本机"
+            return
+        }
         val next = MarkdownImporter.parse(body.value, title.value.ifBlank { "未命名口播" })
-            .copy(format = document.format, speechLang = document.speechLang)
-        if (id != null) app.scripts.update(id, next) else app.scripts.add(next)
+            .copy(title = title.value.ifBlank { "未命名口播" }, format = document.format,
+                speechLang = document.speechLang, sourceText = body.value)
+        val saved = if (id != null) app.scripts.update(id, next) else app.scripts.add(next) != null
+        saveStatus = if (saved) "已保存到本机" else "保存失败，请导出备份"
     }
-    LaunchedEffect(id, title.value, body.value) { delay(350); save() }
+    LaunchedEffect(id, title.value, body.value) {
+        saveStatus = "正在保存…"
+        delay(350)
+        save()
+    }
     DisposableEffect(id) { onDispose { save() } }
+    val currentSave by rememberUpdatedState { save() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) currentSave()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     fun leave(action: () -> Unit) { focus.clearFocus(); save(); action() }
 
     Column(
@@ -94,6 +119,11 @@ fun JianzhouHomeScreen(
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("$units 字 · 约 $seconds 秒", fontSize = 12.sp, color = Palette.TextMuted, modifier = Modifier.weight(1f))
                 TextButton(onClick = { if (units > 0) leave(onPractice) }, enabled = units > 0) { Text("试读") }
+            }
+            Text(saveStatus, fontSize = 11.sp, color = Palette.TextMuted)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = { leave(onSaveCopy) }, enabled = units > 0) { Text("保存副本") }
+                TextButton(onClick = { leave(onExport) }, enabled = body.value.isNotBlank()) { Text("导出 TXT") }
             }
         }
         Row(

@@ -72,11 +72,29 @@ class MainActivity : ComponentActivity() {
     private val backStack = mutableStateListOf<Screen>(Screen.Home)
     private var readiness by mutableStateOf<Readiness?>(null)
     private var afterMicGranted: (() -> Unit)? = null
+    private var exportTitle: String? = null
+    private var exportText: String? = null
 
     private val pickFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(::importUri) }
 
     private val saveArchive = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         uri?.let(::writeArchive)
+    }
+
+    private val saveText = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        val text = exportText
+        exportTitle = null
+        exportText = null
+        if (uri != null && text != null) Thread {
+            val result = runCatching {
+                contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                    ?: error("无法写入所选文件")
+            }
+            runOnUiThread {
+                result.onSuccess { toast(getString(R.string.script_export_saved)) }
+                    .onFailure { toast(getString(R.string.script_export_failed, it.localizedMessage)) }
+            }
+        }.start()
     }
 
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -100,6 +118,8 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
+        exportTitle = savedInstanceState?.getString("exportTitle")
+        exportText = savedInstanceState?.getString("exportText")
         savedInstanceState?.getStringArrayList(KEY_BACK_STACK)?.let { saved ->
             val restored = saved.mapNotNull(::decodeScreen)
             if (restored.isNotEmpty()) {
@@ -118,13 +138,15 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putStringArrayList(KEY_BACK_STACK, ArrayList(backStack.map(::encodeScreen)))
+        outState.putString("exportTitle", exportTitle)
+        outState.putString("exportText", exportText)
     }
 
     override fun onStart() {
         super.onStart()
         // Rehearsal stops when the app goes to the background (onStop); resume listening when it comes back.
         if (backStack.lastOrNull() == Screen.Rehearsal && app.engine.state.mode == SessionEngine.Mode.IDLE &&
-            Readiness.check(this).mic
+            (app.engine.state.scroll == SessionEngine.Scroll.AUTO || Readiness.check(this).mic)
         ) {
             app.engine.start(SessionEngine.Mode.IN_APP)
         }
@@ -248,10 +270,17 @@ class MainActivity : ComponentActivity() {
             when (screen) {
                 Screen.Home -> JianzhouHomeScreen(
                     onPrepare = { app.scripts.currentId?.let { push(Screen.Script(it)) } },
-                    onPractice = { withMic { push(Screen.Rehearsal) } },
+                    onPractice = { withSessionInput { push(Screen.Rehearsal) } },
                     onLibrary = { push(Screen.Library) },
                     onImport = { pickFile.launch(MIME_TYPES) },
                     onSettings = { push(Screen.Settings()) },
+                    onExport = { app.scripts.currentId?.let(::exportScript) },
+                    onSaveCopy = {
+                        app.scripts.currentId?.let { id ->
+                            app.scripts.duplicate(id) { title -> title + " · " + SimpleDateFormat("MM-dd HH:mm", Locale.US).format(Date()) }
+                                ?.let { toast("副本已保存到本机") }
+                        }
+                    },
                 )
                 Screen.Library -> LibraryScreen(
                     readiness = r,
@@ -271,10 +300,16 @@ class MainActivity : ComponentActivity() {
                     readiness = r,
                     onBack = ::pop,
                     onEdit = { push(Screen.Editor(screen.id)) },
-                    onRehearse = { withMic { push(Screen.Rehearsal) } },
-                    onStartOverlay = { target -> withMic { startOverlay(target) } },
+                    onRehearse = { withSessionInput { push(Screen.Rehearsal) } },
+                    onStartOverlay = { target ->
+                        if (app.engine.state.scroll != SessionEngine.Scroll.AUTO && !r.a11yRunning) {
+                            toast(getString(R.string.start_problem_voice_a11y))
+                            push(Screen.Settings(SettingsPage.READINESS))
+                        } else withSessionInput { startOverlay(target) }
+                    },
                     onFixReadiness = { push(Screen.Settings(SettingsPage.READINESS)) },
                     onShare = { shareScript(screen.id) },
+                    onExport = { exportScript(screen.id) },
                     onDuplicate = {
                         app.scripts.duplicate(screen.id) { getString(R.string.script_copy_title, it) }?.let(::openScript)
                     },
@@ -344,6 +379,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun withSessionInput(action: () -> Unit) {
+        if (app.engine.state.scroll == SessionEngine.Scroll.AUTO) action() else withMic(action)
+    }
+
     private fun startOverlay(target: CameraTarget) {
         if (app.engine.state.mode == SessionEngine.Mode.IN_APP) app.engine.stop()
         val problem = OverlayHost.startSession(this)
@@ -360,7 +399,8 @@ class MainActivity : ComponentActivity() {
         val format = old?.format ?: ScriptDocument.FORMAT_TEXT
         val doc = try {
             DocumentImporter.checkSize(
-                MarkdownImporter.parse(text, title).copy(title = title, format = format, speechLang = old?.speechLang),
+                MarkdownImporter.parse(text, title).copy(title = title, format = format,
+                    speechLang = old?.speechLang, sourceText = text),
             )
         } catch (e: ImportException) {
             toast(e.error.text(this))
@@ -373,8 +413,7 @@ class MainActivity : ComponentActivity() {
         if (id == null) {
             app.scripts.add(doc)?.let(::openScript)
         } else {
-            app.scripts.update(id, doc)
-            pop()
+            if (app.scripts.update(id, doc)) pop()
         }
     }
 
@@ -492,7 +531,7 @@ class MainActivity : ComponentActivity() {
                     runCatching {
                         DocumentImporter.checkSize(
                             MarkdownImporter.parse(e.text, e.title.ifBlank { untitled })
-                                .copy(speechLang = e.speechLang?.takeIf { SpeechLang.fromCode(it) != null }),
+                                .copy(speechLang = e.speechLang?.takeIf { SpeechLang.fromCode(it) != null }, sourceText = e.text),
                         )
                     }.getOrNull()?.takeIf { !it.isEmpty }
                 }
@@ -507,7 +546,7 @@ class MainActivity : ComponentActivity() {
 
     private fun pickArchive() = pickFile.launch(arrayOf("application/zip", "application/octet-stream"))
 
-    private fun archiveName() = "suflyor-scripts-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".zip"
+    private fun archiveName() = "见舟提词-全部稿件-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".zip"
 
     private fun writeArchive(uri: Uri) {
         // Read on the main thread, where scripts are saved: a save in the middle of the read can't be lost.
@@ -536,6 +575,14 @@ class MainActivity : ComponentActivity() {
             .putExtra(Intent.EXTRA_SUBJECT, doc.title)
             .putExtra(Intent.EXTRA_TEXT, doc.toEditableText())
         startActivity(Intent.createChooser(send, getString(R.string.script_share_title)))
+    }
+
+    private fun exportScript(id: String) {
+        val doc = app.scripts.documentOf(id) ?: return
+        exportTitle = doc.title
+        exportText = doc.title + "\n\n" + doc.toEditableText()
+        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+        saveText.launch("${ScriptArchive.fileName(doc.title)}-$stamp.txt")
     }
 
     private fun queryName(uri: Uri): String? = runCatching {

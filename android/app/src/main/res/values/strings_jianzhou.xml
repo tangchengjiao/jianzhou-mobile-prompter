@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="overlay_cd_move">拖动移动提词窗</string>
+    <string name="overlay_cd_resize">拖动调整提词窗宽高</string>
+    <string name="script_export_txt">导出 TXT</string>
+    <string name="script_export_saved">稿件已导出</string>
+    <string name="script_export_failed">导出失败：%1$s</string>
+    <string name="start_problem_voice_a11y">语音悬浮需要开启“无障碍 → 见舟提词：悬浮与语音”，才能尝试与拍摄应用共享麦克风。也可选择不使用麦克风的匀速提词。</string>
+    <string name="voice_a11y_hint">与开拍等应用同时收音，需要先在系统无障碍中开启“见舟提词：悬浮与语音”；仅开悬浮权限不够。</string>
+    <string name="voice_busy_hint">拍摄应用正在收音，语音跟随已停在当前位置。请检查无障碍服务，或点下方按钮切到匀速并释放麦克风。</string>
+    <string name="voice_use_timed">匀速提词 · 释放麦克风</string>
+</resources>

@@ -2,9 +2,9 @@
 
 当前已准备原生 SwiftUI/AVKit/Speech 源码、XcodeGen 工程和四项中文定位测试。用户已明确授权公开源码并使用标准免费构建；[仓库](https://github.com/tangchengjiao/jianzhou-mobile-prompter)已创建。[第二次云端构建](https://github.com/tangchengjiao/jianzhou-mobile-prompter/actions/runs/40251322918)已整体成功，包含 iPhone 设备架构编译、模拟器测试和未签名 IPA 打包。该次构建使用原先的 macOS 15 工具链；确认目标手机为 iPhone 13 / iOS 27.0.1 后，工作流已调整为 Xcode 27，后续会单独验证该目标。
 
-此时 GitHub API 连接不稳定，尚未将构建产物取回本机，也未确认新一轮 Xcode 27 构建已成功触发。旧工具链的通过结果没有被写成 iPhone 13 真机验收。
+后续 [Xcode 27 构建](https://github.com/tangchengjiao/jianzhou-mobile-prompter/actions/runs/40254472312)已整体成功，增加 iPhone 13 / iOS 27 模拟器的编辑保存与阅读操作测试，以及原生首页截图。未签名 IPA 和截图已发布到 [iOS 实验版 Releases](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/ios-v0.1.0-preview.1)，并取回本机。尚未在目标手机签名安装或录像。
 
-已准备的执行文件：`.github/workflows/ios-native.yml`。它只接受手动触发，不会因每次改稿或提交自动运行。
+执行文件：`.github/workflows/ios-native.yml`。接受手动触发，也会在默认开发分支的 iOS 源码或该工作流发生变更时运行；Android 修改不触发它。
 
 ## 具体将执行什么
 

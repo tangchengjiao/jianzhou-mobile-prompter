@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.olerast.suflyor.App
 import com.olerast.suflyor.R
 import com.olerast.suflyor.overlay.CameraTarget
+import com.olerast.suflyor.session.SessionEngine
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +53,7 @@ fun ScriptScreen(
     onStartOverlay: (CameraTarget) -> Unit,
     onFixReadiness: () -> Unit,
     onShare: () -> Unit,
+    onExport: () -> Unit,
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -82,6 +84,9 @@ fun ScriptScreen(
             IconButton(onClick = { confirmDelete = true }) {
                 Ic(R.drawable.ic_delete, stringResource(R.string.common_delete), tint = Palette.TextSecondary)
             }
+        }
+        TextButton(onClick = onExport, modifier = Modifier.align(Alignment.End).padding(end = 16.dp)) {
+            Text(stringResource(R.string.script_export_txt))
         }
 
         Box(
@@ -137,13 +142,17 @@ fun ScriptScreen(
         }
 
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (!readiness.overlayVoice) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Pill("语音跟随", state.scroll == SessionEngine.Scroll.VOICE) { app.engine.setScroll(SessionEngine.Scroll.VOICE) }
+                Pill("匀速 · 不占麦克风", state.scroll == SessionEngine.Scroll.AUTO) { app.engine.setScroll(SessionEngine.Scroll.AUTO) }
+            }
+            if (state.scroll != SessionEngine.Scroll.AUTO && !readiness.overlayVoice) {
                 Card(Modifier.fillMaxWidth(), onClick = onFixReadiness) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Ic(R.drawable.ic_warning, null, tint = Palette.Accent, size = 20.dp)
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            stringResource(if (!readiness.mic) R.string.script_setup_mic else R.string.script_setup_a11y),
+                            stringResource(if (!readiness.a11yRunning) R.string.voice_a11y_hint else R.string.script_setup_mic),
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f),
                         )
