@@ -118,14 +118,17 @@ struct ScriptAligner {
         var starts = Array(0...count)
         var current = Array(repeating: 0, count: count + 1)
         var currentStarts = Array(repeating: 0, count: count + 1)
+        var endpointAligned = Array(repeating: false, count: count + 1)
         for (index, character) in spoken.enumerated() {
             current[0] = index + 1; currentStarts[0] = 0
             for column in 1...count {
                 var cost = previous[column - 1] + (character == text[lower + column - 1] ? 0 : 1)
                 var start = starts[column - 1]
-                if previous[column] + 1 < cost { cost = previous[column] + 1; start = starts[column] }
-                if current[column - 1] + 1 < cost { cost = current[column - 1] + 1; start = currentStarts[column - 1] }
+                var aligned = true
+                if previous[column] + 1 < cost { cost = previous[column] + 1; start = starts[column]; aligned = false }
+                if current[column - 1] + 1 < cost { cost = current[column - 1] + 1; start = currentStarts[column - 1]; aligned = false }
                 current[column] = cost; currentStarts[column] = start
+                endpointAligned[column] = aligned
             }
             swap(&previous, &current); swap(&starts, &currentStarts)
         }
@@ -142,7 +145,11 @@ struct ScriptAligner {
                 if spoken.count < 8 && (movement < -8 || movement > 60) { continue }
             }
             let penalty = Double(abs(movement)) * (reacquiring ? 0.00001 : 0.002)
+            // With one incorrect final character, substitution and dropping the
+            // heard tail cost the same. Prefer consuming that character rather
+            // than consistently parking the cursor one character behind.
             let score = (similarity - 0.55) * sqrt(Double(spoken.count)) - min(0.4, penalty)
+                - (endpointAligned[end] ? 0 : 0.03)
             if score > best.score { best = AlignmentMatch(cursor: lower + end, matched: true, score: score) }
         }
         return best
