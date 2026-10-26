@@ -8,6 +8,7 @@ final class SpeechFollower {
     var onTranscript: ((String) -> Void)?
     var onFailure: ((String) -> Void)?
     var onState: ((String) -> Void)?
+    var onUtteranceStart: (() -> Void)?
     private let engine = AVAudioEngine()
     private var recognizer: SFSpeechRecognizer?
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -105,6 +106,7 @@ final class SpeechFollower {
         next.contextualStrings = context
         request = next
         audioRequest.set(next)
+        onUtteranceStart?()
         onState?("正在听，请按稿朗读")
         task = recognizer.recognitionTask(with: next) { [weak self] result, error in
             Task { @MainActor [weak self] in

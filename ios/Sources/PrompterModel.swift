@@ -67,6 +67,7 @@ final class PrompterModel: ObservableObject {
     private var cachedUnits = ScriptUnits("")
     private var cachedSentences: [(range: NSRange, text: String)] = []
     private var recognitionHints: [String] = []
+    private var following = ScriptFollowingSession()
     private var lastTime: TimeInterval = 0
     let speech = SpeechFollower()
     private let defaults: UserDefaults
@@ -89,9 +90,14 @@ final class PrompterModel: ObservableObject {
         speech.onTranscript = { [weak self] text in
             guard let self, self.voiceMode, self.playing else { return }
             self.heardText = text
-            let result = ScriptAligner(script: self.units).align(text, near: Int(self.cursor))
+            let script = self.units
+            let result = self.following.follow(text, script: script, near: Int(self.cursor))
             if result.matched { self.cursor = Double(result.cursor) }
-            self.voiceStatus = result.matched ? "跟读中" : "听到了，正在匹配稿件"
+            self.voiceStatus = result.matched ? "跟读中" : "正在匹配当前位置，可轻点文字重新定位"
+        }
+        speech.onUtteranceStart = { [weak self] in
+            guard let self else { return }
+            self.following.reset(at: Int(self.cursor))
         }
         speech.onState = { [weak self] text in self?.voiceStatus = text }
         speech.onFailure = { [weak self] text in
@@ -155,6 +161,7 @@ final class PrompterModel: ObservableObject {
         pause()
         if sourceOffset == 0 { heardText = "" }
         cursor = Double(units.sourceOffsets.firstIndex { $0 >= sourceOffset } ?? units.characters.count)
+        following.reset(at: Int(cursor))
     }
     func skip(_ direction: Int) {
         let phrases = sentences

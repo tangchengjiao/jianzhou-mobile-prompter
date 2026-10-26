@@ -85,32 +85,26 @@ struct AlignmentMatch {
 struct ScriptAligner {
     let script: ScriptUnits
 
-    func align(_ transcript: String, near cursor: Int) -> AlignmentMatch {
+    func align(_ transcript: String, near cursor: Int, forwardLimit: Int? = nil) -> AlignmentMatch {
         let spoken = ScriptUnits(transcript).characters
         guard spoken.count >= 3, !script.characters.isEmpty else {
             return AlignmentMatch(cursor: cursor, matched: false, score: 0)
         }
         let position = min(max(0, cursor), script.characters.count)
+        let limit = min(script.characters.count, forwardLimit ?? (position + min(32, spoken.count + 6)))
         var best = AlignmentMatch(cursor: cursor, matched: false, score: 0)
         var tested = Set<Int>()
         for requested in [24, 16, 10, 6, 4] {
             let size = min(requested, spoken.count)
             guard tested.insert(size).inserted else { continue }
             let match = search(Array(spoken.suffix(size)), lower: max(0, position - 70),
-                               upper: min(script.characters.count, position + 220), cursor: position)
+                               upper: min(limit, position + 40), cursor: position)
             if match.score > best.score { best = match }
-        }
-        if !best.matched && spoken.count >= 12 {
-            // Reacquire after the reader skips a paragraph. Long, near-exact
-            // evidence is required so an unrelated short phrase cannot jump.
-            best = search(Array(spoken.suffix(24)), lower: 0, upper: script.characters.count,
-                          cursor: position, reacquiring: true)
         }
         return best
     }
 
-    private func search(_ spoken: [Character], lower: Int, upper: Int, cursor: Int,
-                        reacquiring: Bool = false) -> AlignmentMatch {
+    private func search(_ spoken: [Character], lower: Int, upper: Int, cursor: Int) -> AlignmentMatch {
         let text = script.characters
         let count = upper - lower
         guard count > 0 else { return AlignmentMatch(cursor: cursor, matched: false, score: 0) }
@@ -136,15 +130,17 @@ struct ScriptAligner {
         for end in 1...count {
             let length = end - starts[end]
             guard length >= 3, abs(length - spoken.count) <= 4 else { continue }
+            let candidateStart = lower + starts[end]
+            // Follow connected wording around the current position. A phrase
+            // appearing later in the script is not evidence that it was read.
+            if lower + end > cursor && candidateStart > cursor + 3 { continue }
             let similarity = 1 - Double(previous[end]) / Double(max(length, spoken.count))
             let movement = lower + end - cursor
-            let required = reacquiring ? 0.9 : (spoken.count < 6 ? 1.0 : (spoken.count < 10 ? 0.8 : 0.7))
+            let required = spoken.count < 6 ? 1.0 : (spoken.count < 10 ? 0.8 : 0.75)
             guard similarity >= required else { continue }
-            if !reacquiring {
-                if spoken.count < 6 && (movement < -6 || movement > 24) { continue }
-                if spoken.count < 8 && (movement < -8 || movement > 60) { continue }
-            }
-            let penalty = Double(abs(movement)) * (reacquiring ? 0.00001 : 0.002)
+            if spoken.count < 6 && (movement < -6 || movement > 8) { continue }
+            if spoken.count < 8 && (movement < -8 || movement > 14) { continue }
+            let penalty = Double(abs(movement)) * 0.004
             // With one incorrect final character, substitution and dropping the
             // heard tail cost the same. Prefer consuming that character rather
             // than consistently parking the cursor one character behind.
@@ -153,5 +149,28 @@ struct ScriptAligner {
             if score > best.score { best = AlignmentMatch(cursor: lower + end, matched: true, score: score) }
         }
         return best
+    }
+}
+
+/// A recognition task revises its full hypothesis many times. Revisions of the
+/// same speech must not repeatedly earn more forward movement through a script.
+struct ScriptFollowingSession {
+    private var anchor = 0
+    private var heardCount = 0
+    private var previous: [Character] = []
+    private var previousMatched = false
+
+    mutating func reset(at cursor: Int) {
+        anchor = cursor; heardCount = 0; previous = []; previousMatched = false
+    }
+
+    mutating func follow(_ transcript: String, script: ScriptUnits, near cursor: Int) -> AlignmentMatch {
+        let heard = ScriptUnits(transcript).characters
+        guard heard != previous else { return AlignmentMatch(cursor: cursor, matched: previousMatched, score: 0) }
+        previous = heard
+        heardCount = max(heardCount, heard.count)
+        let match = ScriptAligner(script: script).align(transcript, near: cursor, forwardLimit: anchor + heardCount + 6)
+        previousMatched = match.matched
+        return match
     }
 }

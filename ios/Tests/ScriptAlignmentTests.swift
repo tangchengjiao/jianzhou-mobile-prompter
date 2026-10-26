@@ -37,13 +37,16 @@ final class ScriptAlignmentTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(match.cursor, 7)
     }
 
-    func testLongExactEvidenceCanReacquireAfterSkippedParagraph() {
+    func testLaterParagraphCannotAutomaticallyJumpButManualSeekCanResumeThere() {
         let prefix = String(repeating: "甲", count: 350)
         let phrase = "把复杂的问题说清楚才是做内容的第一步"
         let script = ScriptUnits(prefix + phrase)
         let match = ScriptAligner(script: script).align(phrase, near: 0)
-        XCTAssertTrue(match.matched)
-        XCTAssertEqual(match.cursor, script.characters.count)
+        XCTAssertFalse(match.matched)
+        XCTAssertEqual(match.cursor, 0)
+        let manual = ScriptAligner(script: script).align(phrase, near: prefix.count)
+        XCTAssertTrue(manual.matched)
+        XCTAssertEqual(manual.cursor, script.characters.count)
     }
 
     func testThreeCharacterPartialDoesNotWaitForSentenceEnd() {

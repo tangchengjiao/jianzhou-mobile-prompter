@@ -11,12 +11,15 @@ struct CameraView: View {
     @State private var countdown: Int?
     @State private var starting: Task<Void, Never>?
     @State private var review: RecordedVideo?
+    @State private var showRecordingTools = false
+    @State private var hideToolsTask: Task<Void, Never>?
     @AppStorage("camera.prompt.x") private var x = 0.5
     @AppStorage("camera.prompt.y") private var y = 0.28
     @AppStorage("camera.prompt.width") private var width = 0.88
     @AppStorage("camera.prompt.height") private var height = 0.26
     @State private var dragOrigin: CGPoint?
     @State private var resizeOrigin: CGRect?
+    private var toolsVisible: Bool { !recorder.recording || showRecordingTools }
 
     var body: some View {
         GeometryReader { geometry in
@@ -27,7 +30,7 @@ struct CameraView: View {
                                  y: min(max(panelHeight / 2, area.height * y), area.height - panelHeight / 2))
             ZStack(alignment: .bottom) {
                 CameraPreview(recorder: recorder, mirrored: model.cameraPreviewMirror).ignoresSafeArea()
-                VStack { Spacer() }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle()).onTapGesture { toggleRecordingTools() }
                 promptPanel(size: CGSize(width: panelWidth, height: panelHeight), area: area, center: center)
                     .frame(width: panelWidth, height: panelHeight)
                     .position(center)
@@ -36,8 +39,8 @@ struct CameraView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity).allowsHitTesting(false)
                 }
                 VStack(spacing: 10) {
-                    Text(recorder.status).font(.caption).foregroundStyle(.white).lineLimit(2)
-                    if model.voiceMode {
+                    if toolsVisible { Text(recorder.status).font(.caption).foregroundStyle(.white).lineLimit(2) }
+                    if toolsVisible && model.voiceMode {
                         HStack {
                             Text(model.voiceStatus).lineLimit(1)
                             Spacer()
@@ -49,8 +52,10 @@ struct CameraView: View {
                         }
                     }
                     HStack(spacing: 25) {
-                        Button { settings = true } label: { Image(systemName: "slider.horizontal.3").font(.title2) }
-                            .accessibilityLabel("拍摄提词设置")
+                        if toolsVisible {
+                            Button { settings = true } label: { Image(systemName: "slider.horizontal.3").font(.title2) }
+                                .accessibilityLabel("拍摄提词设置")
+                        }
                         Button(action: toggleRecording) {
                             ZStack {
                                 Circle().stroke(.white, lineWidth: 3).frame(width: 68, height: 68)
@@ -60,16 +65,18 @@ struct CameraView: View {
                             }
                         }.disabled(!recorder.ready || recorder.finishing)
                             .accessibilityLabel(recorder.recording ? "停止录像" : (starting == nil ? "开始录像" : "取消倒计时"))
-                        Button { Task { await recorder.flip() } } label: { Image(systemName: "arrow.triangle.2.circlepath.camera").font(.title2) }
-                            .disabled(recorder.recording || recorder.finishing || starting != nil).accessibilityLabel("切换镜头")
+                        if toolsVisible {
+                            Button { Task { await recorder.flip() } } label: { Image(systemName: "arrow.triangle.2.circlepath.camera").font(.title2) }
+                                .disabled(recorder.recording || recorder.finishing || starting != nil).accessibilityLabel("切换镜头")
+                        }
                     }.foregroundStyle(.white)
-                    HStack {
+                    if toolsVisible { HStack {
                         Toggle("语音跟读", isOn: $model.voiceMode).disabled(recorder.recording || starting != nil)
                         Spacer()
                         if let date = recorder.startedAt, recorder.recording {
                             Text(date, style: .timer).monospacedDigit()
                         }
-                    }.font(.caption).foregroundStyle(.white)
+                    }.font(.caption).foregroundStyle(.white) }
                     if let url = recorder.lastVideo, !recorder.recording, !recorder.finishing {
                         HStack {
                             Button("预览") {
@@ -81,7 +88,7 @@ struct CameraView: View {
                             ShareLink("分享视频", item: url)
                         }.font(.subheadline).foregroundStyle(.white)
                     }
-                }.padding(18).background(.black.opacity(0.7))
+                }.padding(18).background(.black.opacity(toolsVisible ? 0.7 : 0))
             }.background(.black)
         }
         .navigationTitle("拍摄跟读").navigationBarTitleDisplayMode(.inline)
@@ -93,6 +100,9 @@ struct CameraView: View {
         .onChange(of: recorder.lastVideo) { _, url in
             if let url { model.pause(); review = RecordedVideo(url: url) }
         }
+        .onChange(of: recorder.recording) { _, _ in
+            showRecordingTools = false; hideToolsTask?.cancel()
+        }
         .task {
             pip.stop(); model.pause(); model.voiceMode = true; model.useCapturedAudio = true
             recorder.onInterruption = { cancelStart(); model.pause() }
@@ -102,7 +112,19 @@ struct CameraView: View {
             if value == .background { cancelStart(); model.pause(); recorder.close() }
             else if value == .active, !recorder.ready, review == nil { Task { await recorder.prepare(speech: model.speech) } }
         }
-        .onDisappear { cancelStart(); model.pause(); model.useCapturedAudio = false; recorder.close() }
+        .onDisappear { cancelStart(); hideToolsTask?.cancel(); model.pause(); model.useCapturedAudio = false; recorder.close() }
+    }
+
+    private func toggleRecordingTools() {
+        guard recorder.recording else { return }
+        hideToolsTask?.cancel()
+        withAnimation(.easeOut(duration: 0.2)) { showRecordingTools.toggle() }
+        if showRecordingTools {
+            hideToolsTask = Task {
+                do { try await Task.sleep(for: .seconds(4)) } catch { return }
+                withAnimation(.easeOut(duration: 0.2)) { showRecordingTools = false }
+            }
+        }
     }
 
     private func toggleRecording() {
@@ -142,7 +164,10 @@ struct CameraView: View {
                     x = min(max(size.width / 2 + 8, origin.x + value.translation.width), area.width - size.width / 2 - 8) / area.width
                     y = min(max(size.height / 2, origin.y + value.translation.height), area.height - size.height / 2) / area.height
                 }.onEnded { _ in dragOrigin = nil })
-            CameraPromptText(text: model.selected.text, sourceOffset: model.sourceOffset, fontSize: model.fontSize)
+            CameraPromptText(text: model.selected.text, sourceOffset: model.sourceOffset, fontSize: model.fontSize) { offset in
+                model.seek(sourceOffset: offset)
+                if recorder.recording { model.resumeImmediately() }
+            }
                 .scaleEffect(x: model.mirror ? -1 : 1, y: 1)
             HStack {
                 Text(model.voiceMode ? "语音跟读" : "匀速提词").font(.system(size: 10)).padding(.leading, 12)

@@ -84,8 +84,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=ios-v0.1.0-preview.5
+          tag=ios-v0.1.0-preview.6
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title '见舟提词 iOS：连续跟读、即时预览与拍摄镜像' --notes '拍摄提词改为按当前视觉行滚动，优化中文匹配开销与短句响应，加入识别恢复和实时听到的文字。录制完成自动打开有声预览，可重拍、保存到相册或分享。前置取景镜像、成片镜像与文字镜像独立设置。未签名 IPA 需自用签名安装；设备编译和模拟器回归通过，真实跟读效果仍需 iPhone 试读确认。'
+            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title '见舟提词 iOS：收紧跟读定位与精简录制界面' --notes '针对跳到下方多行的反馈，取消自动全文跨段定位，约束连续匹配和同一识别假设的推进范围。需要主动跳读时轻点提词文字重新定位。录像开始后底部默认只保留停止键，轻点取景空白处可临时展开工具，4 秒后收起。保留录后有声预览与独立镜像设置。未签名 IPA 需自用签名；编译和回归通过，真实防误跳效果仍需本人复测。'
           fi
           gh release upload "$tag" build/JianzhouPrompter-unsigned.ipa build/ios-home.png --clobber

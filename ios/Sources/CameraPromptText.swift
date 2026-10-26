@@ -6,6 +6,7 @@ struct CameraPromptText: UIViewRepresentable {
     let text: String
     let sourceOffset: Int
     let fontSize: Double
+    var onSeek: ((Int) -> Void)?
 
     func makeUIView(context: Context) -> PromptTrackingTextView {
         let storage = NSTextStorage()
@@ -17,18 +18,28 @@ struct CameraPromptText: UIViewRepresentable {
         view.textContainer.widthTracksTextView = true
         view.textContainer.lineFragmentPadding = 0
         view.accessibilityLabel = "拍摄提词正文"
+        view.addGestureRecognizer(UITapGestureRecognizer(target: view, action: #selector(PromptTrackingTextView.seekAtTap(_:))))
         return view
     }
 
     func updateUIView(_ view: PromptTrackingTextView, context: Context) {
+        view.onSeek = onSeek
         view.apply(text: text, sourceOffset: sourceOffset, fontSize: fontSize)
     }
 }
 
 final class PromptTrackingTextView: UITextView {
+    var onSeek: ((Int) -> Void)?
     private var cursor = 0
     private var appliedFont: Double = 0
     private var lastSize = CGSize.zero
+
+    @objc func seekAtTap(_ gesture: UITapGestureRecognizer) {
+        var point = gesture.location(in: self)
+        point.x -= textContainerInset.left; point.y -= textContainerInset.top
+        let index = layoutManager.characterIndex(for: point, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
+        onSeek?(min(index, textStorage.length))
+    }
 
     func apply(text: String, sourceOffset: Int, fontSize: Double) {
         let contentChanged = self.text != text || appliedFont != fontSize
