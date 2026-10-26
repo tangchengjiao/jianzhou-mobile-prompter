@@ -1,10 +1,10 @@
 # iPhone 13 自用安装准备
 
-目标手机：iPhone 13，用户提供的系统版本为 iOS 27.0.1。当前 iOS 云端编译和模拟器测试已通过，但尚未在这台手机完成签名安装。下面是待执行的安装流程，不代表已经安装成功。
+目标手机：iPhone 13，用户提供的系统版本为 iOS 27.0.1。最新 iOS IPA 已编译和下载，但截至 2026-10-26，仍未在这台手机完成签名安装。当前实际阻碍是 Apple 登录错误 -80046；重复输入正确密码和验证码没有解决它。[AltStore 同类报告](https://github.com/altstoreio/AltStore/issues/1840)。
 
 ## 不买 Mac 的路径
 
-由 GitHub 的 macOS 构建环境生成未签名 IPA，再用本人 Windows 电脑上的 AltServer / AltStore Classic 完成自用签名。不要求把应用上架，也不需要先买付费开发者会员；免费签名通常需要周期刷新。
+由 GitHub 的 macOS 构建环境生成未签名 IPA，再用本人 Windows 电脑上的签名工具完成自用安装。不要求把应用上架，也不需要先买付费开发者会员；免费签名通常需要周期刷新。已在本机准备 iTunes、iCloud、Apple Mobile Device Support、AltServer 和 Sideloadly，且 USB 连接已被验证。
 
 ## 安装顺序
 
@@ -12,8 +12,8 @@
 2. 用数据线连接 iPhone，解锁并信任这台电脑。按官方说明开启 Wi-Fi 同步，便于后续刷新。
 3. 在自己的电脑上，通过 AltServer 选择安装 AltStore 到这台 iPhone，并自行输入本人 Apple ID。账号密码不需要发送到聊天或写进项目。
 4. 按 iPhone 提示完成开发者模式或开发者信任设置。具体页面以手机显示为准。
-5. 从 [iOS 实验版 Releases](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/ios-v0.1.0-preview.1)直接下载 `JianzhouPrompter-unsigned.ipa`，不要解压 IPA 本身。
-6. 将 IPA 放到 iPhone“文件”中，在 AltStore 的 My Apps 页用加号导入，等待自用签名与安装。
+5. 从 [iOS 实验版 Releases](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/ios-v0.1.0-preview.2)直接下载 `JianzhouPrompter-unsigned.ipa`，不要解压 IPA 本身。
+6. AltStore 安装成功后，可将 IPA 放到 iPhone“文件”中，在 My Apps 页用加号导入。也可在 Windows 的 Sideloadly 中选择 IPA，使用自己的 Apple ID 签名。**当前两款工具都在登录阶段返回 -80046，故此步骤尚未完成**；使用新版 IPA 不会自行消除这个错误。
 7. 打开见舟提词。先用全屏匀速阅读；启用全屏语音练习时再允许麦克风和语音识别。最后尝试系统画中画，并分别在常用拍摄应用中实际录制。
 
 ## 需要本人确认的结果

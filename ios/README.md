@@ -1,6 +1,6 @@
 # 见舟提词 · iOS 原生实验工程
 
-当前为原生源码与最小技术实验，尚未由 Xcode 编译，尚未在 iPhone 验证，未生成可安装 IPA。
+已通过云端 Xcode 27 的 iPhone 设备架构编译。最新[未签名 IPA](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/ios-v0.1.0-preview.2) 已发布；6 项中文定位与稿件保存逻辑测试通过，系统“文件”导出界面的自动测试仍有 1 项未通过。尚未在 iPhone 完成自用签名安装和实际录像。
 
 ## 已有源码
 

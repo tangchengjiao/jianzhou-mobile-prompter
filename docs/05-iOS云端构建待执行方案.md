@@ -4,6 +4,8 @@
 
 后续 [Xcode 27 构建](https://github.com/tangchengjiao/jianzhou-mobile-prompter/actions/runs/40254472312)已整体成功，增加 iPhone 13 / iOS 27 模拟器的编辑保存与阅读操作测试，以及原生首页截图。未签名 IPA 和截图已发布到 [iOS 实验版 Releases](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/ios-v0.1.0-preview.1)，并取回本机。尚未在目标手机签名安装或录像。
 
+最新稿件副本/TXT 导出版本在 [本次构建](https://github.com/tangchengjiao/jianzhou-mobile-prompter/actions/runs/40265498249)完成设备编译、IPA 打包与 6 项逻辑测试；新增的系统文件导出界面自动测试仍失败。因此从构建产物中手动发布[未签名实验 IPA](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/ios-v0.1.0-preview.2)，发布说明明确标注失败项。真实 iPhone 安装尚未成功。
+
 执行文件：`.github/workflows/ios-native.yml`。接受手动触发，也会在默认开发分支的 iOS 源码或该工作流发生变更时运行；Android 修改不触发它。
 
 ## 具体将执行什么
