@@ -37,6 +37,7 @@ import com.olerast.suflyor.overlay.PrompterAccessibilityService
 import com.olerast.suflyor.session.SessionEngine
 import com.olerast.suflyor.ui.EditorScreen
 import com.olerast.suflyor.ui.JournalScreen
+import com.olerast.suflyor.ui.JianzhouHomeScreen
 import com.olerast.suflyor.ui.KeyLearning
 import com.olerast.suflyor.ui.LibraryScreen
 import com.olerast.suflyor.ui.Readiness
@@ -58,6 +59,7 @@ class MainActivity : ComponentActivity() {
     private val app get() = App.instance
 
     private sealed interface Screen {
+        data object Home : Screen
         data object Library : Screen
         data class Script(val id: String) : Screen
         data class Editor(val id: String?) : Screen
@@ -67,7 +69,7 @@ class MainActivity : ComponentActivity() {
         data object Journal : Screen
     }
 
-    private val backStack = mutableStateListOf<Screen>(Screen.Library)
+    private val backStack = mutableStateListOf<Screen>(Screen.Home)
     private var readiness by mutableStateOf<Readiness?>(null)
     private var afterMicGranted: (() -> Unit)? = null
 
@@ -129,6 +131,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun encodeScreen(s: Screen): String = when (s) {
+        Screen.Home -> "home"
         Screen.Library -> "library"
         is Screen.Script -> "script:${s.id}"
         is Screen.Editor -> "editor:${s.id.orEmpty()}"
@@ -138,6 +141,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun decodeScreen(s: String): Screen? = when {
+        s == "home" -> Screen.Home
         s == "library" -> Screen.Library
         s.startsWith("script:") -> Screen.Script(s.removePrefix("script:"))
         s.startsWith("editor:") -> Screen.Editor(s.removePrefix("editor:").ifEmpty { null })
@@ -231,7 +235,7 @@ class MainActivity : ComponentActivity() {
     private fun openScript(id: String) {
         app.scripts.select(id)
         backStack.clear()
-        backStack.add(Screen.Library)
+        backStack.add(Screen.Home)
         backStack.add(Screen.Script(id))
     }
 
@@ -242,6 +246,13 @@ class MainActivity : ComponentActivity() {
         BackHandler(enabled = backStack.size > 1) { pop() }
         key(screen) {
             when (screen) {
+                Screen.Home -> JianzhouHomeScreen(
+                    onPrepare = { app.scripts.currentId?.let { push(Screen.Script(it)) } },
+                    onPractice = { withMic { push(Screen.Rehearsal) } },
+                    onLibrary = { push(Screen.Library) },
+                    onImport = { pickFile.launch(MIME_TYPES) },
+                    onSettings = { push(Screen.Settings()) },
+                )
                 Screen.Library -> LibraryScreen(
                     readiness = r,
                     onOpen = { id ->

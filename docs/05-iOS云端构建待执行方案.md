@@ -1,6 +1,6 @@
-# iOS 云端构建方案（未执行）
+# iOS 云端构建方案与执行记录
 
-当前已经准备原生 SwiftUI/AVKit/Speech 源码、XcodeGen 工程和四项中文定位测试。Windows 只能做语法与文件检查；要得到真实的 iPhone 编译结果，需要 macOS/Xcode。
+当前已准备原生 SwiftUI/AVKit/Speech 源码、XcodeGen 工程和四项中文定位测试。用户已明确授权公开源码并使用标准免费构建；[仓库](https://github.com/tangchengjiao/jianzhou-mobile-prompter)已创建。[第二次云端构建](https://github.com/tangchengjiao/jianzhou-mobile-prompter/actions/runs/40251322918)的 iPhone 设备架构编译已通过，模拟器测试仍在运行，以 Actions 最终结果为准。
 
 已准备的执行文件：`.github/workflows/ios-native.yml`。它只接受手动触发，不会因每次改稿或提交自动运行。
 
@@ -15,7 +15,7 @@
 
 ## 仓库与额度
 
-需要用户决定是否允许创建新的 GitHub 构建仓库。当前尚未创建、上传或触发。
+用户已经选择公开源码仓库，源码已上传并触发构建。下列为原先提供的方案及费用边界，后续不用重复询问同一次仓库创建授权。
 
 - 若选择公开源码仓库：标准 GitHub-hosted runner 的 Actions 使用按 GitHub 官方规则免费；仅上传项目源码、公开设计资料与说明，不上传私人稿件、设备数据或凭据。
 - 若选择私有仓库：先检查账号 Actions 额度和限制；未核对前不承诺免费，也不擅自启用付费额度。
