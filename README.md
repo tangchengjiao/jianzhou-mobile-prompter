@@ -2,12 +2,12 @@
 
 面向中文口播的个人提词工具：编辑稿件、全屏练习，并研究配合现有拍摄应用使用的悬浮提词。
 
-**[下载 Android 实验安装包](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/v0.1.0-preview.1)** · [iOS 构建进度](https://github.com/tangchengjiao/jianzhou-mobile-prompter/actions/workflows/ios-native.yml) · [安装与验证说明](docs/06-原生实验版安装与验证.md)
+**[下载 Android 新版安装包](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/v0.1.0-preview.3)** · [iOS 未签名实验包](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/ios-v0.1.0-preview.1) · [安装与验证说明](docs/06-原生实验版安装与验证.md)
 
 | 平台 | 当前阶段 | 使用条件 |
 | --- | --- | --- |
-| Android | 已编译实验 APK；中文定位单元测试通过，尚未真机试拍 | Android 10+、arm64；约 90 MB，内含离线语音模型 |
-| iPhone / iPad | 已通过云端 Xcode 编译与模拟器测试，待签名和真机试拍 | iOS 17+；主要试拍目标为 iPhone 13 / iOS 27.0.1 |
+| Android | 已按初测反馈加入悬浮缩放与 TXT 导出，34 项相关测试通过；完整录像待验收 | Android 10+、arm64；约 90 MB，内含离线语音模型 |
+| iPhone / iPad | Xcode 27 构建、4 项定位与 2 项模拟器操作测试通过，待自用签名和真机试拍 | iOS 17+；主要试拍目标为 iPhone 13 / iOS 27.0.1 |
 | 交互原型 | 可在电脑预览 iPhone / Pixel 操作流程 | 浏览器原型不具备原生跨 App 悬浮能力 |
 
 先做好本人拍摄时的阅读体验：无需账户与会员，稿件保存在本机；原生悬浮能力和录音共享按手机及拍摄应用实际验证，不承诺“任何 App 都能语音跟随”。
@@ -18,6 +18,7 @@
 - [产品需求与交互](docs/02-产品需求与交互.md)：首版范围、页面、中文跟读策略、拍摄时的操作。
 - [开发与真机验证计划](docs/03-开发与真机验证计划.md)：先验证核心用法，再完成双端；安装方式和验收标准。
 - [原生实验版安装与验证](docs/06-原生实验版安装与验证.md)：安装、实际测试范围和下一步。
+- [安卓本次更新](docs/08-安卓试用反馈与更新.md)：悬浮窗宽高与位置、稿件保存/导出，以及与开拍同时收音的无障碍设置。
 - [iOS 原生工程](ios/)：SwiftUI / AVKit / Speech，与构建说明。
 - [Android 原生工程](android/)：基于 Suflyor 改编的中文离线实验版。
 - `design/`：三张界面设计。用户已选择第三张作为交互原型基础。
@@ -43,7 +44,7 @@ pnpm dev --host 127.0.0.1 --port 4186
 pnpm build
 ```
 
-原生应用分别使用 SwiftUI / AVKit 和 Kotlin / Compose。Android 已生成实验 APK；iOS 的云端编译、模拟器测试及未签名 IPA 打包已成功，仍需自用签名。两端都尚未完成真机试拍。
+原生应用分别使用 SwiftUI / AVKit 和 Kotlin / Compose。Android 已有用户初测反馈与新版 APK；iOS 的云端编译、模拟器测试及未签名 IPA 打包已成功，仍需自用签名。两端的完整录像体验尚待真机验收。
 
 ## 开源来源
 
