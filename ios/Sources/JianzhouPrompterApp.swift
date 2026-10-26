@@ -39,6 +39,8 @@ struct PromptHome: View {
     @State private var exporting = false
     @State private var practice = false
     @State private var route: Route?
+    @FocusState private var field: Field?
+    enum Field: Hashable { case title, body }
     enum Route: Hashable { case prepare, read }
 
     var body: some View {
@@ -52,9 +54,11 @@ struct PromptHome: View {
                     VStack(spacing: 10) {
                         TextField("稿件标题", text: Binding(get: { model.selected.title }, set: { model.update(title: $0) }))
                             .font(.headline).accessibilityLabel("稿件标题")
+                            .focused($field, equals: .title)
                         TextEditor(text: Binding(get: { model.selected.text }, set: { model.update(text: $0) }))
                             .font(.system(size: 16)).lineSpacing(7).scrollContentBackground(.hidden)
                             .frame(height: 215).accessibilityLabel("稿件正文")
+                            .focused($field, equals: .body)
                         Divider()
                         HStack {
                             Text("\(model.selected.text.filter { !$0.isWhitespace }.count) 字 · 约 \(Int(ceil(Double(model.units.characters.count) / model.speed * 60))) 秒")
@@ -71,9 +75,9 @@ struct PromptHome: View {
                         Label("全屏练习", systemImage: "rectangle.inset.filled").tag(true)
                     }.pickerStyle(.segmented)
                     Button {
-                        model.pause(); route = practice ? .read : .prepare
+                        field = nil; model.pause(); route = practice ? .read : .prepare
                     } label: { HStack { Spacer(); Text(practice ? "开始全屏练习" : "准备悬浮提词"); Spacer(); Image(systemName: "arrow.right") } }
-                        .buttonStyle(MainButton()).disabled(!model.hasText)
+                        .buttonStyle(MainButton()).disabled(!model.hasText).accessibilityIdentifier("prepare-prompt")
                     Button("从文件导入") { model.pause(); importing = true }.frame(maxWidth: .infinity)
                     Divider()
                     HStack { Text("最近使用").foregroundStyle(.secondary); Spacer(); Button("全部稿件") { model.pause(); library = true } }.font(.subheadline)
@@ -85,8 +89,12 @@ struct PromptHome: View {
                 }.padding(22)
             }
             .background(Brand.background).foregroundStyle(Brand.ink)
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("见舟提词").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { model.pause(); settings = true } label: { Image(systemName: "gearshape") }.accessibilityLabel("设置") } }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { Button { field = nil; model.pause(); settings = true } label: { Image(systemName: "gearshape") }.accessibilityLabel("设置") }
+                ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("完成输入") { field = nil } }
+            }
             .navigationDestination(item: $route) { target in
                 switch target { case .prepare: PromptPreparation(); case .read: PromptReader() }
             }

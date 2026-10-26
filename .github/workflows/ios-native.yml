@@ -2,14 +2,19 @@ name: iOS native build and tests
 
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/mobile-preview]
+    paths:
+      - ios/**
+      - .github/workflows/ios-native.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   ios:
     runs-on: xcode-27
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Prepare Xcode project
@@ -28,7 +33,7 @@ jobs:
           mkdir -p build
           xcodebuild -project JianzhouPrompter.xcodeproj -scheme JianzhouPrompter -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/Device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build | tee build/device-build.log
       - name: Run Chinese alignment tests
-        timeout-minutes: 8
+        timeout-minutes: 15
         working-directory: ios
         run: |
           set -o pipefail
@@ -43,6 +48,7 @@ jobs:
           xcrun simctl boot "$device_id"
           xcrun simctl bootstatus "$device_id" -b
           xcodebuild -project JianzhouPrompter.xcodeproj -scheme JianzhouPrompter -destination "platform=iOS Simulator,id=$device_id" -parallel-testing-enabled NO -derivedDataPath build/Simulator CODE_SIGNING_ALLOWED=NO test | tee build/tests.log
+          xcrun simctl uninstall "$device_id" com.jianzhou.prompter
           xcrun simctl install "$device_id" build/Simulator/Build/Products/Debug-iphonesimulator/JianzhouPrompter.app
           xcrun simctl launch "$device_id" com.jianzhou.prompter
           sleep 2
@@ -65,3 +71,13 @@ jobs:
             ios/build/*.png
           retention-days: 3
           if-no-files-found: warn
+      - name: Publish unsigned iOS experiment
+        working-directory: ios
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=ios-v0.1.0-preview.1
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title '见舟提词 iOS 原生实验版' --notes '未签名 IPA：需本人自用签名才能安装。构建、模拟器测试及界面截图来自此运行；实际 iPhone 录像兼容性与语音能力仍需真机验证。'
+          fi
+          gh release upload "$tag" build/JianzhouPrompter-unsigned.ipa build/ios-home.png --clobber

@@ -44,10 +44,20 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+  JianzhouPrompterUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: JianzhouPrompter
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   JianzhouPrompter:
     build:
       targets:
         JianzhouPrompter: all
     test:
-      targets: [JianzhouPrompterTests]
+      targets: [JianzhouPrompterTests, JianzhouPrompterUITests]
