@@ -4,6 +4,8 @@
 
 当前手机已覆盖安装构建 5。构建 4 的用户反馈为跟读常停滞、录完缺少预览；构建 5 的针对性改动见 [跟拍改进](11-iOS跟拍改进.md)，需新录一段复测。
 
+最新已覆盖到构建 6：用户反馈构建 5 会跨到下方多行，已收紧连续定位，见 [防误跳与拍摄界面](12-iOS误跳与拍摄界面.md)。优先用同一原稿检查误跳是否消失，同时确认没有因收紧而停住；录像时底部默认只留停止键，点取景空白处临时展开工具。
+
 ## 装入 IPA
 
 1. 在 iPhone 的 Safari 打开仓库 iOS Releases，下载最新 `JianzhouPrompter-unsigned.ipa` 到“文件”中的“下载项”。Windows 上的副本位于 `D:/DevCaches/jianzhou-mobile/ready/JianzhouPrompter-iOS-current.ipa`。
