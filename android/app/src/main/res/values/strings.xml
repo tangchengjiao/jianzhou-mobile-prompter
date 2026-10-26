@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">见舟提词</string>
+    <string name="a11y_label">见舟提词：悬浮与语音</string>
+    <string name="a11y_description">在拍摄时显示悬浮提词，并尝试保持语音跟随。仅在提词运行期间处理声音、应用切换事件和已配置的遥控按键，不读取屏幕文字。实际麦克风共享效果需要在你的手机和拍摄应用中验证。</string>
+</resources>

@@ -1,0 +1,28 @@
+{
+  "checks": [
+    "iPhone 393 × 852 viewport and selected home design",
+    "cancelled countdown does not start reading later",
+    "script edits and settings persist after reload",
+    "timed reading starts, advances and pauses",
+    "manual next, previous, sentence seek and reset",
+    "explicitly labelled in-screen floating demo drags and closes",
+    "UTF-8 file import and TXT export",
+    "empty script cannot start",
+    "Android device preview preserved at 427 × 952",
+    "no uncaught browser errors"
+  ],
+  "errors": [],
+  "beforePause": "匀速提词中\n13%",
+  "iosViewport": {
+    "x": 503.5,
+    "y": 174,
+    "width": 393,
+    "height": 852
+  },
+  "androidViewport": {
+    "x": 487,
+    "y": 124,
+    "width": 427,
+    "height": 952
+  }
+}

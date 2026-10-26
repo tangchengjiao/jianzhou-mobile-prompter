@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="overlay_cd_lock">锁定浮窗，让触摸穿透到相机</string>
+    <string name="overlay_cd_close">关闭提词</string>
+    <string name="overlay_cd_unlock">解锁提词窗</string>
+    <string name="overlay_status_starting">准备中</string>
+    <string name="overlay_status_stopped">已停止</string>
+    <string name="overlay_status_paused">已暂停</string>
+    <string name="overlay_status_auto">匀速</string>
+    <string name="overlay_status_mic_busy">麦克风占用</string>
+    <string name="overlay_status_cant_hear">暂未听到</string>
+    <string name="overlay_status_listening">跟读中</string>
+    <string name="overlay_toast_closed_a11y_off">悬浮服务已关闭，提词窗已停止。</string>
+    <string name="tile_label">见舟提词</string>
+    <string name="tile_subtitle_listening">提词运行中</string>
+    <string name="notification_channel_session">提词运行状态</string>
+    <string name="notification_session_title">见舟提词运行中</string>
+    <string name="notification_session_text">悬浮提词已开启</string>
+    <string name="notification_action_stop">停止</string>
+    <string name="session_error_asr_failed">语音模型加载失败：%1$s</string>
+    <string name="session_error_rate_unsupported">麦克风不支持 %1$d Hz</string>
+    <string name="session_error_recorder_create">无法创建音频输入：%1$s</string>
+    <string name="session_error_recorder_init">麦克风未就绪，请检查录音权限。</string>
+    <string name="session_error_record_start">无法开始音频输入：%1$s</string>
+    <string name="session_error_mic_busy">麦克风正在被其他应用使用。</string>
+    <string name="session_error_mic_read">音频读取错误：%1$d</string>
+    <string name="key_name_volume_up">音量加</string>
+    <string name="key_name_volume_down">音量减</string>
+    <string name="key_name_space">空格</string>
+    <string name="key_name_dpad_center">方向键确认</string>
+    <string name="key_name_next_track">下一首</string>
+    <string name="key_name_previous_track">上一首</string>
+    <string name="key_name_headset">耳机按键</string>
+    <string name="key_name_fast_forward">快进</string>
+    <string name="key_name_rewind">快退</string>
+    <string name="key_name_gamepad_a">手柄 A</string>
+    <string name="overlay_status_error">发生错误</string>
+    <string name="overlay_status_sound">声音启停</string>
+    <string name="overlay_cd_tune">调整字号、行数、背景和语速</string>
+    <string name="overlay_tune_font">字号</string>
+    <string name="overlay_tune_lines">行数</string>
+    <string name="overlay_tune_background">背景</string>
+    <string name="overlay_tune_speed">语速</string>
+</resources>

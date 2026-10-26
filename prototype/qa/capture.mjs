@@ -1,0 +1,18 @@
+import { chromium } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
+const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const page = await browser.newPage({ viewport: { width: 1400, height: 1200 }, deviceScaleFactor: 1 });
+const errors = [];
+page.on('pageerror', e => errors.push(e.message));
+await page.goto('http://127.0.0.1:4186');
+await page.getByRole('heading', { name: '这次，想讲什么？' }).waitFor();
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+await page.waitForTimeout(600);
+const screen = page.getByTestId('device-screen');
+const bounds = await screen.boundingBox();
+if (Math.abs(bounds.width - 393) > 1 || Math.abs(bounds.height - 852) > 1) throw new Error('Expected 393 × 852 device viewport');
+await screen.screenshot({ path: 'qa/home-initial.png' });
+console.log(JSON.stringify({ bounds, errors, app: await page.locator('.jz-app').boundingBox(), header: await page.locator('.jz-header').boundingBox(), content: await page.locator('.home-content').boundingBox() }));
+await writeFile('qa/initial-browser.json', JSON.stringify({ bounds, errors }, null, 2));
+await browser.close();

@@ -1,0 +1,59 @@
+name: iOS native build and tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Prepare Xcode project
+        working-directory: ios
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodebuild -version
+          xcodegen generate
+      - name: Build unsigned iPhone app
+        working-directory: ios
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild -project JianzhouPrompter.xcodeproj -scheme JianzhouPrompter -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/Device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build | tee build/device-build.log
+      - name: Run Chinese alignment tests
+        working-directory: ios
+        run: |
+          set -o pipefail
+          device_id=$(python3 - <<'PY'
+          import json, subprocess
+          data = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '--json']))
+          devices = [d for runtime, ds in data['devices'].items() if 'iOS' in runtime for d in ds if 'iPhone' in d['name'] and d.get('isAvailable')]
+          if not devices:
+              raise SystemExit('No available iPhone simulator')
+          print(devices[0]['udid'])
+          PY
+          )
+          xcodebuild -project JianzhouPrompter.xcodeproj -scheme JianzhouPrompter -destination "platform=iOS Simulator,id=$device_id" -derivedDataPath build/Simulator CODE_SIGNING_ALLOWED=NO test | tee build/tests.log
+      - name: Package unsigned IPA
+        working-directory: ios
+        run: |
+          mkdir -p build/Payload
+          ditto build/Device/Build/Products/Release-iphoneos/JianzhouPrompter.app build/Payload/JianzhouPrompter.app
+          cd build
+          ditto -c -k --sequesterRsrc --keepParent Payload JianzhouPrompter-unsigned.ipa
+      - name: Save build result
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: JianzhouPrompter-iOS-experiment
+          path: |
+            ios/build/*.ipa
+            ios/build/*.log
+          retention-days: 3
+          if-no-files-found: warn

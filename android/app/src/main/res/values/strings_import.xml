@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="import_error_empty_file">文件是空的</string>
+    <string name="import_error_file_too_big">文件超过 %1$d MB，请确认选择的是稿件。</string>
+    <string name="import_error_text_file_too_big">文本文件过大，请分成几份稿件。</string>
+    <string name="import_error_legacy_doc">暂不支持旧版 DOC，请另存为 DOCX 或 TXT。</string>
+    <string name="import_error_encrypted">文档已加密，请先在原应用中解除密码。</string>
+    <string name="import_error_unknown_zip">这不是 DOCX 或 ODT 文档。</string>
+    <string name="import_error_no_text">没有找到可导入的文字</string>
+    <string name="import_error_not_text">这不是文本文件</string>
+    <string name="import_error_pasted_too_long">内容过长，请拆成几份稿件。</string>
+    <string name="import_error_text_too_long_count">内容约 %1$d 千字，当前支持最多 %2$d 千字。</string>
+    <string name="import_error_text_too_long_max">当前支持最多 %1$d 千字。</string>
+    <string name="import_error_not_rtf">这不是 RTF 文档</string>
+    <string name="import_error_zip_too_many_files">压缩包中的文件过多</string>
+    <string name="import_error_zip_too_large">解压后的内容过大</string>
+    <string name="import_error_unsafe">文档结构无法读取</string>
+    <string name="import_error_not_docx">无法读取 Word 文档内容</string>
+    <string name="import_error_not_odt">无法读取 ODT 文档内容</string>
+    <string name="import_error_pdf_unsupported">当前安卓版本暂不能直接读取 PDF，请改用 TXT 或 DOCX。</string>
+    <string name="import_error_pdf_password">PDF 已加密</string>
+    <string name="import_error_pdf_scan">这份 PDF 没有文字层，请先复制文字或转成文本。</string>
+    <string name="import_error_open_failed">文件无法打开</string>
+    <string name="import_error_read_failed">读取失败：%1$s</string>
+    <string name="import_error_generic">导入失败</string>
+    <string name="import_warning_pdf_paragraphs">已按 PDF 文本重建段落，请检查断句。</string>
+    <plurals name="import_warning_docx_tables">
+        <item quantity="one">The document has a table: its cells are shown in order, as plain text.</item>
+        <item quantity="other">The document has %1$d tables: their cells are shown in order, as plain text.</item>
+    </plurals>
+    <string name="import_title_shared">收到的稿件</string>
+    <string name="import_title_clipboard">剪贴板稿件</string>
+    <string name="import_opening">正在打开…</string>
+    <string name="import_nothing">没有可导入的内容</string>
+    <string name="import_clipboard_empty">剪贴板没有文字</string>
+    <string name="main_mic_blocked">请在应用权限中允许麦克风</string>
+    <string name="main_open_app_failed">无法打开%1$s，可以手动切换。</string>
+    <string name="main_no_words">稿件中还没有可朗读的文字</string>
+    <string name="script_cd_edit">修改稿件</string>
+    <string name="script_stats">· %1$s · %2$s · %3$s</string>
+    <string name="script_setup_mic">语音模式需要允许麦克风</string>
+    <string name="script_setup_a11y">开启悬浮与语音服务后，再验证录像时是否能同时跟读。</string>
+    <string name="script_action_overlay">准备悬浮提词</string>
+    <string name="script_action_rehearse">全屏练习</string>
+    <string name="script_delete_title">删除这份稿件？</string>
+    <string name="script_delete_message">将从稿库删除“%1$s”，原始文件会保留。</string>
+    <string name="sample_title">为什么我要自己做提词器</string>
+    <string name="sample_script">我拍视频的时候，最怕的不是忘词。\n\n而是刚找到状态，提词却没跟上。\n\n所以这一次，我想做一个真正顺手的工具。\n\n你可以停一下，也可以从这一句重新开始。</string>
+</resources>

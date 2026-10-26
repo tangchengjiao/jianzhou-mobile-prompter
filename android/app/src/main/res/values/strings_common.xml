@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="common_cd_back">返回</string>
+    <string name="common_cd_restart">从头开始</string>
+    <string name="common_cd_line_back">上一句</string>
+    <string name="common_cd_line_forward">下一句</string>
+    <string name="common_cd_pause">暂停</string>
+    <string name="common_cd_resume">继续</string>
+    <string name="common_cd_scroll_mode">提词模式：语音、匀速或声音启停</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_delete">删除</string>
+    <string name="common_untitled">未命名口播</string>
+    <plurals name="words_count">
+        <item quantity="one">%d 字</item>
+        <item quantity="other">%d 字</item>
+    </plurals>
+    <string name="format_typed">文本</string>
+    <string name="format_sample">示例</string>
+    <string name="key_action_pause">暂停 / 继续</string>
+    <string name="key_action_back">上一句</string>
+    <string name="key_action_forward">下一句</string>
+    <string name="camera_target_instagram" translatable="false">Instagram</string>
+    <string name="camera_target_tiktok" translatable="false">TikTok</string>
+    <string name="camera_target_camera">系统相机</string>
+    <string name="camera_target_window_only">只开浮窗，手动切换拍摄应用</string>
+    <string name="start_problem_no_host">请开启见舟提词无障碍服务，或允许显示在其他应用上层。</string>
+    <string name="start_problem_window_failed">未能显示提词窗，请检查无障碍服务或悬浮权限。</string>
+    <string name="speech_lang_auto">跟随稿件语言</string>
+    <string name="speech_lang_ru" translatable="false">Русский</string>
+    <string name="speech_lang_en" translatable="false">English</string>
+    <string name="speech_lang_zh">简体中文</string>
+    <string name="settings_speech_lang_name_zh">中文</string>
+</resources>

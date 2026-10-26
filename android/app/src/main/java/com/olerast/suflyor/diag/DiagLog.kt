@@ -1,0 +1,69 @@
+package com.olerast.suflyor.diag
+
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import com.olerast.suflyor.BuildConfig
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/** In-memory diagnostic journal shown in the app; everything the test run needs to report lands here. */
+object DiagLog {
+    private const val MAX_LINES = 600
+    private val lines = ArrayDeque<String>()
+    private val listeners = mutableListOf<() -> Unit>()
+    private val main = Handler(Looper.getMainLooper())
+    private val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
+    private var notifyPosted = false
+
+    fun i(message: String) = add(message)
+
+    /** Journal lines are English in every UI language: they go into bug reports. Errors start with this. */
+    const val ERROR_PREFIX = "ERROR: "
+
+    fun e(message: String, t: Throwable? = null) =
+        add(ERROR_PREFIX + message + (t?.let { " — ${it.javaClass.simpleName}: ${it.message?.take(MAX_MESSAGE)}${frames(it)}" } ?: ""))
+
+    /** Some exceptions carry their whole input in the message (org.json quotes the text it failed on). */
+    private const val MAX_MESSAGE = 200
+
+    /** Where it happened: a few stack frames, enough for a bug report without flooding the journal. */
+    private fun frames(t: Throwable): String =
+        t.stackTrace.take(STACK_FRAMES).joinToString("") { "\n    at ${it.className}.${it.methodName}(${it.fileName}:${it.lineNumber})" }
+
+    private const val STACK_FRAMES = 6
+
+    @Synchronized
+    private fun add(message: String) {
+        val line = "${time.format(Date())}  $message"
+        // The journal holds recognized speech and app names: mirror it to logcat only in debug builds.
+        if (BuildConfig.DEBUG) Log.i("Suflyor", line)
+        lines.addLast(line)
+        while (lines.size > MAX_LINES) lines.removeFirst()
+        if (!notifyPosted) {
+            notifyPosted = true
+            main.postDelayed({
+                synchronized(this) { notifyPosted = false }
+                listeners.toList().forEach { it() }
+            }, 200)
+        }
+    }
+
+    @Synchronized
+    fun text(): String = lines.joinToString("\n")
+
+    @Synchronized
+    fun clear() {
+        lines.clear()
+        main.post { listeners.toList().forEach { it() } }
+    }
+
+    fun addListener(l: () -> Unit) {
+        listeners += l
+    }
+
+    fun removeListener(l: () -> Unit) {
+        listeners -= l
+    }
+}
