@@ -1,0 +1,15 @@
+import { chromium } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
+const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const page = await browser.newPage({ viewport: { width: 1400, height: 1100 } });
+await page.goto('https://github.com/tangchengjiao/jianzhou-mobile-prompter', { waitUntil: 'domcontentloaded', timeout: 60000 });
+await page.getByRole('heading', { name: '联系二维码', exact: true }).scrollIntoViewIfNeeded();
+await page.waitForTimeout(1500);
+await page.getByRole('heading', { name: '企业服务与联系', exact: true }).scrollIntoViewIfNeeded();
+await page.waitForTimeout(1500);
+const images = await page.locator('article img').evaluateAll(nodes => nodes.map(img => ({ alt: img.alt, width: img.naturalWidth, loaded: img.complete && img.naturalWidth > 0 })));
+console.log(JSON.stringify({ images, expectedQrImages: 5 }));
+await writeFile('qa/repository-check.json', JSON.stringify({ images, expectedQrImages: 5 }, null, 2));
+await page.getByRole('heading', { name: '联系二维码', exact: true }).scrollIntoViewIfNeeded();
+await page.screenshot({ path: 'qa/repository-contacts.png' });
+await browser.close();

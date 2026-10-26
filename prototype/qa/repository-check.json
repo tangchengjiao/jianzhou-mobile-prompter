@@ -1,0 +1,30 @@
+{
+  "images": [
+    {
+      "alt": "见舟微信二维码",
+      "width": 500,
+      "loaded": true
+    },
+    {
+      "alt": "见舟抖音二维码",
+      "width": 544,
+      "loaded": true
+    },
+    {
+      "alt": "见舟AI赋能视频号二维码",
+      "width": 500,
+      "loaded": true
+    },
+    {
+      "alt": "公众号二维码",
+      "width": 430,
+      "loaded": true
+    },
+    {
+      "alt": "见舟微信二维码",
+      "width": 500,
+      "loaded": true
+    }
+  ],
+  "expectedQrImages": 5
+}

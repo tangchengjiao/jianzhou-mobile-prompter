@@ -7,7 +7,7 @@
 | 平台 | 当前阶段 | 使用条件 |
 | --- | --- | --- |
 | Android | 已编译实验 APK；中文定位单元测试通过，尚未真机试拍 | Android 10+、arm64；约 90 MB，内含离线语音模型 |
-| iPhone / iPad | 原生工程已准备，正在进行 Xcode 构建验证 | 暂定 iOS 17+；自用安装仍需签名 |
+| iPhone / iPad | 已通过云端 Xcode 编译与模拟器测试，待签名和真机试拍 | iOS 17+；主要试拍目标为 iPhone 13 / iOS 27.0.1 |
 | 交互原型 | 可在电脑预览 iPhone / Pixel 操作流程 | 浏览器原型不具备原生跨 App 悬浮能力 |
 
 先做好本人拍摄时的阅读体验：无需账户与会员，稿件保存在本机；原生悬浮能力和录音共享按手机及拍摄应用实际验证，不承诺“任何 App 都能语音跟随”。
@@ -43,7 +43,7 @@ pnpm dev --host 127.0.0.1 --port 4186
 pnpm build
 ```
 
-原生应用分别使用 SwiftUI / AVKit 和 Kotlin / Compose。Android 已生成实验 APK；iOS 尚无经过验证的可安装 IPA；两端都尚未完成真机试拍。
+原生应用分别使用 SwiftUI / AVKit 和 Kotlin / Compose。Android 已生成实验 APK；iOS 的云端编译、模拟器测试及未签名 IPA 打包已成功，仍需自用签名。两端都尚未完成真机试拍。
 
 ## 开源来源
 
