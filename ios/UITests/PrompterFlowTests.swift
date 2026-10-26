@@ -51,10 +51,9 @@ final class PrompterFlowTests: XCTestCase {
         XCTAssertTrue((app.textFields["稿件标题"].value as? String ?? "").contains(" · "))
         XCTAssertEqual(app.textViews["稿件正文"].value as? String ?? "", wording)
         app.buttons["导出 TXT"].tap()
-        // Apple's document browser exposes its Save button in the accessibility tree, but XCTest's
-        // app.buttons query does not traverse the remote Files process on the iOS 27 simulator.
-        let pickerTree = app.debugDescription
-        XCTAssertTrue(pickerTree.contains("DOCPicker.actionButton"))
+        // The Files picker lives in a separate process on iOS 27. XCTest can tap its visible Save
+        // control on the fixed iPhone 13 simulator, while querying its accessibility tree stalls.
+        Thread.sleep(forTimeInterval: 1)
         app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
             .withOffset(CGVector(dx: 338, dy: 85)).tap()
         let saved = app.alerts["稿件已导出"]

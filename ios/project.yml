@@ -26,6 +26,8 @@ targets:
       path: Generated/Info.plist
       properties:
         CFBundleDisplayName: 见舟提词
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
         NSMicrophoneUsageDescription: 全屏语音练习时，用麦克风定位你正在朗读的句子。
