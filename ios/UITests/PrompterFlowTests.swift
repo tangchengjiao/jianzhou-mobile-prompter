@@ -52,7 +52,9 @@ final class PrompterFlowTests: XCTestCase {
         XCTAssertEqual(app.textViews["稿件正文"].value as? String ?? "", wording)
         app.buttons["导出 TXT"].tap()
         let cancel = app.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "取消"])).firstMatch
-        XCTAssertTrue(cancel.waitForExistence(timeout: 10))
+        let pickerHasCancel = cancel.waitForExistence(timeout: 10)
+        if !pickerHasCancel { print("Export screen accessibility tree: \(app.debugDescription)") }
+        XCTAssertTrue(pickerHasCancel)
         cancel.tap()
         XCTAssertTrue(app.buttons["导出 TXT"].waitForExistence(timeout: 5))
     }
