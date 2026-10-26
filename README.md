@@ -2,12 +2,12 @@
 
 面向中文口播的个人提词工具：编辑稿件、全屏练习，并研究配合现有拍摄应用使用的悬浮提词。
 
-**[直接下载 Android APK](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/download/v0.1.0-preview.3/JianzhouPrompter-Android-0.1.0-preview.3.apk)** · **[直接下载 iPhone 未签名 IPA](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/download/ios-v0.1.0-preview.2/JianzhouPrompter-unsigned.ipa)** · [安装与验证说明](docs/06-原生实验版安装与验证.md)
+**[直接下载 Android APK](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/download/v0.1.0-preview.4/JianzhouPrompter-Android-0.1.0-preview.4.apk)** · **[直接下载 iPhone 未签名 IPA](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/download/ios-v0.1.0-preview.3/JianzhouPrompter-unsigned.ipa)** · [安装与验证说明](docs/06-原生实验版安装与验证.md)
 
 | 平台 | 当前阶段 | 使用条件 |
 | --- | --- | --- |
-| Android | 已按初测反馈加入悬浮缩放与 TXT 导出，34 项相关测试通过；完整录像待验收 | Android 10+、arm64；约 90 MB，内含离线语音模型 |
-| iPhone / iPad | 最新 IPA 已编译、6 项逻辑测试通过；系统文件导出界面的自动测试未通过，自用签名和真机试拍待完成 | iOS 17+；目标为 iPhone 13 / iOS 27.0.1；目前 Apple 登录错误 -80046 阻碍签名 |
+| Android | Preview 4：单行悬浮栏、透明度滑条、稿件勾选批量导出；98 项测试通过，真实录像待验收 | Android 10+、arm64；约 90 MB，内含离线语音模型 |
+| iPhone / iPad | 构建 3 已在本人 iPhone 签名安装并打开；新增 App 内拍摄跟读正在验证，画中画保留匀速 | iOS 17+；iPhone 13 / iOS 27.0.1 安装方法已沉淀，不再重复试错 |
 | 交互原型 | 可在电脑预览 iPhone / Pixel 操作流程 | 浏览器原型不具备原生跨 App 悬浮能力 |
 
 先做好本人拍摄时的阅读体验：无需账户与会员，稿件保存在本机；原生悬浮能力和录音共享按手机及拍摄应用实际验证，不承诺“任何 App 都能语音跟随”。

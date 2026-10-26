@@ -37,9 +37,11 @@ final class CameraRecorder: ObservableObject {
     func prepare(speech: SpeechFollower) async {
         let camera = await AVCaptureDevice.requestAccess(for: .video)
         let microphone = await AVAudioApplication.requestRecordPermission()
+        guard !Task.isCancelled else { return }
         guard camera, microphone else { status = "请在系统设置中允许相机和麦克风。"; return }
         do {
             device = try await pipeline.prepare { sample in speech.appendCapturedAudio(sample) }
+            guard !Task.isCancelled else { pipeline.close(); return }
             ready = true; status = "镜头已就绪 · 提词文字不会录进视频"
         } catch { status = error.localizedDescription }
     }
@@ -156,6 +158,9 @@ final class CameraPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
                         self.session.addOutput(self.video); self.session.addOutput(self.audio)
                         self.video.setSampleBufferDelegate(self, queue: self.queue)
                         self.audio.setSampleBufferDelegate(self, queue: self.queue)
+                        if let connection = self.video.connection(with: .video), connection.isVideoRotationAngleSupported(0) {
+                            connection.videoRotationAngle = 0 // Rotation is stored once on the movie track.
+                        }
                         if let connection = self.video.connection(with: .video), connection.isVideoMirroringSupported {
                             connection.automaticallyAdjustsVideoMirroring = false; connection.isVideoMirrored = false
                         }
@@ -192,6 +197,9 @@ final class CameraPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
                         throw self.failure("无法切换镜头。")
                     }
                     self.session.addInput(input); self.cameraInput = input
+                    if let connection = self.video.connection(with: .video), connection.isVideoRotationAngleSupported(0) {
+                        connection.videoRotationAngle = 0
+                    }
                     if let connection = self.video.connection(with: .video), connection.isVideoMirroringSupported {
                         connection.automaticallyAdjustsVideoMirroring = false; connection.isVideoMirrored = false
                     }

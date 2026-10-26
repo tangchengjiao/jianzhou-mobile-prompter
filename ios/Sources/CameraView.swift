@@ -95,7 +95,10 @@ struct CameraView: View {
             }
             countdown = nil
             guard !Task.isCancelled else { return }
-            if await recorder.start() { model.resumeImmediately() }
+            if await recorder.start() {
+                if Task.isCancelled { recorder.stop() }
+                else { model.resumeImmediately() }
+            }
             starting = nil
         }
     }

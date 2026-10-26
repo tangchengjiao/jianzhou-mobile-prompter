@@ -1,18 +1,28 @@
 # iPhone 13 自用安装与试拍
 
-目标设备：用户的 iPhone 13，iOS 27.0.1。Windows 已识别手机，Apple Mobile Device Service 正在运行。当前 AltServer 与 Sideloadly 都在 Apple 登录阶段返回 -80046，手机上尚无 AltStore 或见舟提词。[最新未签名 IPA](https://github.com/tangchengjiao/jianzhou-mobile-prompter/releases/tag/ios-v0.1.0-preview.2) 已备好；以下步骤从签名安装成功后继续。
+目标设备：用户的 iPhone 13，iOS 27.0.1。构建 3 已完成签名安装、开发者模式和信任；用户已进入应用并测试系统画中画。本次新增 App 内拍摄跟读，不能把旧版已安装等同于新版拍摄已验证。
 
 ## 装入 IPA
 
 1. 在 iPhone 的 Safari 打开仓库 iOS Releases，下载最新 `JianzhouPrompter-unsigned.ipa` 到“文件”中的“下载项”。Windows 上的副本位于 `D:/DevCaches/jianzhou-mobile/ready/JianzhouPrompter-iOS-current.ipa`。
-2. 待 Apple 登录问题解决，在自用签名工具中选 IPA 并签名安装。Apple ID 密码和验证码只由本人在工具窗口输入。
+2. 复用 [成功安装方法](07-iPhone自用安装.md) 覆盖升级，不重走失败的 AltServer 流程。Apple ID 密码和验证码只在本人电脑工具窗口输入。
 3. 见舟提词图标出现后，打开一次，确认首页能正常显示。安装失败时记录手机实际报错文字。
 
 ## 先确认稿件
 
 1. 在首页编辑一份中文口播稿，保留一处空行与标点。返回桌面再打开，确认内容仍在。
 2. 点“保存副本”，修改副本中的一句，确认“全部稿件”仍可找回原稿。
-3. 点“导出 TXT”，在系统文件界面选一个本机目录。用“文件”打开 TXT，确认原始换行和修改句子都保留。
+3. 点“导出 TXT”，在“文件 → 在我的 iPhone 上 → 见舟提词 → 导出稿件”打开文件，确认原始换行和修改句子都保留；“分享刚导出的 TXT”可另存至 iCloud Drive 等位置。
+
+## 本次优先验收：App 内拍摄跟读
+
+1. 首页点“拍摄并语音跟读”，允许相机、麦克风和语音识别。
+2. 拖动提词框上方短线，把文字放在画面中间；拖右下角改变宽高。拍摄设置里将底色不透明度调到适合自己的程度。
+3. 开启“语音跟读”，点红色录像按钮，等待倒计时。朗读约 15 秒，中间停顿 2 秒，再继续或重读一句；观察文字是否随读音定位。
+4. 停止，点“保存到相册”并回放原视频：有真实声音、画面方向正确、没有把提词文字烧进视频。也可“分享视频”给剪映。
+5. 再试一次匀速录像，确认两种模式都能正常停止并保存。
+
+实现证据：AVCaptureAudioDataOutput 的同一个 CMSampleBuffer 同时送往 AVAssetWriter 音轨与 SFSpeechRecognizer；不另开 AVAudioEngine 抢收音。真实跟读准确性、成片收音及拍摄手感以本机结果为准。
 
 ## 再确认提词和录像
 
