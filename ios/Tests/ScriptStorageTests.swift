@@ -31,4 +31,15 @@ final class ScriptStorageTests: XCTestCase {
         XCTAssertTrue(snapshot.filename.hasSuffix(".txt"))
         XCTAssertFalse(snapshot.filename.contains("/"))
     }
+
+    func testExportWritesReadableCopiesWithoutOverwriting() throws {
+        let documents = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: documents) }
+        let snapshot = PromptExport(script: PromptScript(title: "调过的口播", text: "第一句，保留原来的停顿。"))
+        let first = try PromptFileStore.write(snapshot, in: documents)
+        let second = try PromptFileStore.write(snapshot, in: documents)
+        XCTAssertNotEqual(first, second)
+        XCTAssertEqual(try String(contentsOf: first, encoding: .utf8), snapshot.text)
+        XCTAssertEqual(try String(contentsOf: second, encoding: .utf8), snapshot.text)
+    }
 }

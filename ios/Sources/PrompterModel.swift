@@ -23,6 +23,23 @@ struct PromptExport {
     }
 }
 
+enum PromptFileStore {
+    static func write(_ snapshot: PromptExport, in documentsDirectory: URL? = nil) throws -> URL {
+        let documents = documentsDirectory ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let folder = documents.appendingPathComponent("导出稿件", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let stem = (snapshot.filename as NSString).deletingPathExtension
+        var destination = folder.appendingPathComponent(snapshot.filename)
+        var copy = 2
+        while FileManager.default.fileExists(atPath: destination.path) {
+            destination = folder.appendingPathComponent("\(stem)-\(copy).txt")
+            copy += 1
+        }
+        try snapshot.text.write(to: destination, atomically: true, encoding: .utf8)
+        return destination
+    }
+}
+
 @MainActor
 final class PrompterModel: ObservableObject {
     @Published var scripts: [PromptScript] { didSet { save() } }

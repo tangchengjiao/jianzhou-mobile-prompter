@@ -40,7 +40,7 @@ final class PrompterFlowTests: XCTestCase {
         XCTAssertTrue(paused.exists)
     }
 
-    func testSaveCopyShowsEditedWordingAndExportOpensFiles() {
+    func testSaveCopyShowsEditedWordingAndExportsTXT() {
         let app = XCUIApplication()
         app.launch()
         let body = app.textViews["稿件正文"]
@@ -51,21 +51,9 @@ final class PrompterFlowTests: XCTestCase {
         XCTAssertTrue((app.textFields["稿件标题"].value as? String ?? "").contains(" · "))
         XCTAssertEqual(app.textViews["稿件正文"].value as? String ?? "", wording)
         app.buttons["导出 TXT"].tap()
-        Thread.sleep(forTimeInterval: 1)
-        let picker = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        picker.name = "TXT export picker before saving"
-        picker.lifetime = .keepAlways
-        add(picker)
-        // The Files picker runs in a separate process on iOS 27; capture its visible state so
-        // the Save target can be checked when an accessibility query does not reach that process.
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-            .withOffset(CGVector(dx: 338, dy: 85)).tap()
-        let afterTap = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        afterTap.name = "TXT export picker after save tap"
-        afterTap.lifetime = .keepAlways
-        add(afterTap)
         let saved = app.alerts["稿件已导出"]
         XCTAssertTrue(saved.waitForExistence(timeout: 10))
+        XCTAssertTrue(saved.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "导出稿件")).firstMatch.exists)
         saved.buttons["知道了"].tap()
         XCTAssertTrue(app.buttons["导出 TXT"].waitForExistence(timeout: 5))
     }
