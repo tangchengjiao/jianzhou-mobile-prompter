@@ -37,6 +37,7 @@ struct PromptHome: View {
     @State private var settings = false
     @State private var importing = false
     @State private var exporting = false
+    @State private var exportSaved = false
     @State private var exportAfterSettings = false
     @State private var exportDocument = PromptTextFile(text: "")
     @State private var exportFilename = "口播稿.txt"
@@ -135,7 +136,15 @@ struct PromptHome: View {
                 } catch { model.message = "无法读取这份稿件，请用 UTF-8 TXT 或直接粘贴文字。" }
             }
             .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .plainText, defaultFilename: exportFilename) { result in
-                if case .failure(let error) = result { model.message = error.localizedDescription }
+                switch result {
+                case .success: exportSaved = true
+                case .failure(let error): model.message = error.localizedDescription
+                }
+            }
+            .alert("稿件已导出", isPresented: $exportSaved) {
+                Button("知道了", role: .cancel) {}
+            } message: {
+                Text("可在“文件”App 中打开这份 TXT。")
             }
         }
     }
